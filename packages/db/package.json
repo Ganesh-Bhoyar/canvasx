@@ -10,6 +10,8 @@
   "scripts": {
     "generate": "prisma generate",
     "migrate": "prisma migrate dev"
+    
+
   },
   "exports": {
     "./client":"./index.ts"

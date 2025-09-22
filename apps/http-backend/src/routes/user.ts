@@ -13,9 +13,9 @@ const userrouter:Router=Router();
 
 
 userrouter.post("/signup",async (req,res)=>{
-    const parsed=req.body.safeParse(userSchema);
+    const parsed=userSchema.safeParse(req.body);
     if(!parsed.success)
-    {
+    {  res.json({message:"Invalid data"});
         return ;
     }
     const {name,email,password}=parsed.data;
@@ -39,15 +39,15 @@ userrouter.post("/signup",async (req,res)=>{
 });
 
 userrouter.post("/signin",async (req,res)=>{
-    const parsed=req.body.safeParse(siginShema);
+    const parsed=siginShema.safeParse(req.body);
     if(!parsed.success)
-    {
+    {   res.json({message:"Invalid data"});
         return ;
     }
     const {email,password}=parsed.data;
     const user= await client.user.findUnique({
         where:{
-            email
+            email:email as string
         }
     })
     if(user && await bcrypt.compare(password,user.password))
@@ -61,9 +61,9 @@ userrouter.post("/signin",async (req,res)=>{
 });
 
 userrouter.post("/createroom",auth,async (req,res)=>{
-    const parsed=req.body.safeParse(roomSchema);
+    const parsed=roomSchema.safeParse(req.body);
     if(!parsed.success)
-    {
+    {   res.json({message:"Invalid data"});
         return ;
     }
     const {name}=parsed.data;

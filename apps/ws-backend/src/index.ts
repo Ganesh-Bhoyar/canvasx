@@ -5,43 +5,46 @@ import client from 'db/client';
 
 
  interface JWT_PAYLOAD{
-    userid:string;
+    id:string;
  }
 const wss =new WebSocketServer({ port: 8080 });
 
-const verifyauth=(token:string):boolean=>{
+const verifyauth=(token:string):string=>{
     try{
         const decoded=jwt.verify(token,JWT_SECRET) as JWT_PAYLOAD;
-        if(decoded.userid){
-            return true;
+        console.log(decoded);
+        if(decoded.id){
+            return decoded.id;
         }
         else
         {
-            return false;
+            return '';
         }
     }
         catch(e){
-            return false;
+            return '';
         }
 };
 
 
 wss.on('connection',(ws,request)=>{
-    const url=request.url;
-     if(!url){
+    const url = request.url;
+    if (!url) {
+     return;
+   }
+   const queryParams = new URLSearchParams(url.split('?')[1]);
+    const token = queryParams.get('token') || "";
+     console.log("auth:",token);
+     const userid=verifyauth(token);
+     console.log("userid:",userid);
+     if(!token || userid==''){
         ws.close();
         return;
      }
-     const auth = url.split("/")[1];
-     if(!auth || !verifyauth(auth)){
-        ws.close();
-        return;
+     else{
+        ws.send( `Welcome user ${userid}!`);
      }
-     
-
-
-
-
+      
 
 
     ws.on('message',(message)=>{

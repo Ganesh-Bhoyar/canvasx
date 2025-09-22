@@ -20,7 +20,7 @@ model User {
   name String @unique
   email String @unique
   password String
-  rooms Room[]
+  rooms Room[] 
   messages Message[]
   
 }
@@ -39,9 +39,10 @@ model Room {
 
 model Message {
   id Int @id @default(autoincrement())
-  roomId Int
-  room Room @relation(fields:[roomId], references: [id])
+  slugid String
+  room Room @relation(fields:[slugid], references: [slug])
   content String
   userid String
   user User @relation(fields:[userid], references: [id])
+  time DateTime  @default(now())
 }
