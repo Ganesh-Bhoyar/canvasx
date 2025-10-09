@@ -2,12 +2,15 @@ import {WebSocketServer} from 'ws';
 const jwt=require('jsonwebtoken');
 import { JWT_SECRET } from 'backend-config/config';
 import client from 'db/client';
+import {ws_message} from './types';
+import UserManager from './usermanager';
 
 
  interface JWT_PAYLOAD{
     id:string;
  }
 const wss =new WebSocketServer({ port: 8080 });
+ const userManager=new UserManager();
 
 const verifyauth=(token:string):string=>{
     try{
@@ -34,7 +37,7 @@ wss.on('connection',(ws,request)=>{
    }
    const queryParams = new URLSearchParams(url.split('?')[1]);
     const token = queryParams.get('token') || "";
-     console.log("auth:",token);
+     //console.log("auth:",token);
      const userid=verifyauth(token);
      console.log("userid:",userid);
      if(!token || userid==''){
@@ -42,12 +45,54 @@ wss.on('connection',(ws,request)=>{
         return;
      }
      else{
-        ws.send( `Welcome user ${userid}!`);
+        ws.send(JSON.stringify({type:"connection",message:{message:"Connected to WebSocket server"}}));
      }
+
+    
       
 
 
-    ws.on('message',(message)=>{
-        console.log(message);
+    ws.on('message',(msg )=>{
+        let message : ws_message = JSON.parse(msg.toString());
+        if(message.type==="join_room")
+        {
+            const {slug}=message.message;
+            userManager.joinroom(userid,slug,ws);
+        }
+
+        else if(message.type==="prev_messages")
+        {
+            const {slug }=message.message;
+            userManager.prevmessage(userid,ws,slug);
+        }
+
+        else if(message.type==="create_room")
+        {
+            const {name }=message.message;
+            userManager.createroom(name,ws,userid);
+        }
+
+        else if(message.type==="message")
+        {
+            const {slug ,shape,color,height,width,x,y}=message.message;
+            userManager.sendmessage(userid,shape,color,height,width,x,y,ws,slug);
+        }
+
+        else if(message.type==="leave_room")
+        {
+            const {slug}=message.message;
+            userManager.removeroom(userid,slug,ws);
+        }
+        else if(message.type==="active")
+        {
+            const {}=message.message;
+            userManager.activeusers(userid,ws);
+        }
+
+        else if(message.type==="disconnect")
+        {
+            const {}=message.message;
+            userManager.disconnect(userid);
+        }
     });
 });

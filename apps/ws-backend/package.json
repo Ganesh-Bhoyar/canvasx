@@ -10,10 +10,11 @@
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/ws": "^8.18.1",
-    "ws": "^8.18.3",
     "backend-config": "workspace:*",
+    "common": "workspace:*",
     "db": "workspace:*",
-     "common":"workspace:*"
+    "slugify": "^1.6.6",
+    "ws": "^8.18.3"
   },
   "keywords": [],
   "author": "",

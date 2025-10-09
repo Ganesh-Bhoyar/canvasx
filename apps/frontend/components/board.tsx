@@ -1,0 +1,183 @@
+"use client";
+
+ 
+import React, {   useEffect, useRef } from "react";
+import { Button } from "./ui/button";
+import { set } from "zod";
+import { WS_URL } from "@/config";
+import { Session } from "inspector/promises";
+import { useRouter } from "next/navigation";
+import { useWebSocket } from "./context/websocketcontext";
+
+ 
+interface messagetype{
+   shape:string,
+   color:string,
+   height:number,
+   width:number,
+   x:number,
+   y:number
+}
+
+export default   function Board({ slug}:{ slug:string})
+{  
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [innerWidth, setInnerWidth] =  React.useState(0);
+    const [innerHeight, setInnerHeight] =  React.useState(0);
+    const [isDrawing, setIsDrawing] = React.useState(false);
+    const [lastX, setLastX] = React.useState(0);
+    const [lastY, setLastY] = React.useState(0);
+    const [newX, setNewX] = React.useState(0);
+    const [newY, setNewY] = React.useState(0);
+    const [color, setColor] = React.useState("red");
+    const [shape, setShape] = React.useState("circle");
+    
+   
+    const [messages,Setmessages]=React.useState<messagetype[]>([]);
+       const Router = useRouter();
+       const socket = useWebSocket()?.socket;
+     
+  
+
+
+
+   
+   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setInnerHeight(window.innerHeight);
+    setInnerWidth(window.innerWidth);
+   
+
+
+   
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const handleDown = (e: MouseEvent) => {
+      setIsDrawing(true);
+      setLastX(e.offsetX);
+      setLastY(e.offsetY);
+      console.log("Mouse down at", e.offsetX, e.offsetY);
+    };
+  
+
+   
+
+    const handleMove = (e: MouseEvent) => {
+      console.log("Mouse move event", e, );
+      console.log("isDrawing", isDrawing);
+
+      if (!isDrawing)
+      {
+        return;
+      }
+      setNewX(e.offsetX);
+      setNewY(e.offsetY);
+      const newx = e.offsetX;
+      const newy = e.offsetY;
+      console.log("Mouse move at", e.offsetX, e.offsetY);
+      draw_rect(ctx, lastX, lastY, newx - lastX, newy - lastY,color,shape);
+      socket!.send(JSON.stringify({
+        type:"message",
+        message:{
+          slug,
+          shape,
+          color,
+          height:newy - lastY,
+          width:newx - lastX,
+          x:lastX,
+          y:lastY
+        }
+      }))
+       
+    };
+
+    const handleUp = () => {
+      draw_rect(ctx, lastX, lastY, newX - lastX, newY - lastY,color,shape);
+      setIsDrawing(false);
+      console.log("Mouse up");
+    };
+       
+
+    canvas.addEventListener("mousedown", handleDown);
+    canvas.addEventListener("mousemove", handleMove);
+    canvas.addEventListener("mouseup", handleUp);
+
+    // cleanup
+    return () => {
+      canvas.removeEventListener("mousedown", handleDown);
+      canvas.removeEventListener("mousemove", handleMove);
+      canvas.removeEventListener("mouseup", handleUp);
+    };
+
+    
+  }, [isDrawing, lastX, lastY, newX, newY]);
+
+
+   useEffect(()=>{
+      if(socket)
+      {
+        socket.send(JSON.stringify({type:"prev_message",message:{}}));
+      }
+    },[])
+
+if(socket !== null)
+{
+  socket!.onmessage = (e) => {
+    const message = JSON.parse(e.data);
+    if (message.type === "message") {
+      Setmessages(messages=>[...messages,message.message]);
+    }
+    else if(message.type === "prev_messages")
+    {
+      Setmessages(messages=>[...messages,message.message]);
+    }
+    else if(message.type === "invalid access")
+    {
+      console.log(message.message);
+    }
+    else if(message.type==="message sent successfully")
+    {
+      console.log(message.message);
+    }
+    else
+    {
+      console.log("unknown message type:", message);
+    }
+  };
+}
+ 
+ 
+
+
+  return ( <div className="flex flex-col items-center justify-center overflow-hidden width-full height-screen">
+      
+   <canvas ref={canvasRef} width={innerWidth} height={innerHeight - 1} className="border border-white bg-black  touch-none">
+
+ 
+
+   </canvas>
+    <Button  onClick={() => setShape("circle")} className="fixed  bottom-2 right-2">Circle</Button>
+    <Button onClick={() => setShape("rect")} className="fixed bottom-2 right-24">Rect</Button>
+   </div>
+  );
+}
+
+
+
+
+function draw_rect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number,color:string,shape:string) {
+  if (shape === "rect") {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width, height);
+  } 
+  else if (shape === "circle") {
+    ctx.beginPath();
+    ctx.arc(x + width / 2, y + height / 2, (Math.min(Math.abs(width), Math.abs(height)) / 2), 0, 2 * Math.PI);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+}
+
+ 
+ 
