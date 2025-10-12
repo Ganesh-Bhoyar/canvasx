@@ -16,7 +16,8 @@ interface messagetype{
    height:number,
    width:number,
    x:number,
-   y:number
+   y:number,
+   status:string
 }
 
 export default   function Board({ slug}:{ slug:string})
@@ -76,7 +77,17 @@ export default   function Board({ slug}:{ slug:string})
       const newx = e.offsetX;
       const newy = e.offsetY;
       console.log("Mouse move at", e.offsetX, e.offsetY);
-      draw_rect(ctx, lastX, lastY, newx - lastX, newy - lastY,color,shape);
+      // draw_rect(ctx, lastX, lastY, newx - lastX, newy - lastY,color,shape);
+      const data={
+        shape,
+        color,
+        height:newy - lastY,
+        width:newx - lastX,
+        x:lastX,
+        y:lastY,
+        status:"inter"
+      };
+      Setmessages(messages=>[...messages,data]);
       socket!.send(JSON.stringify({
         type:"message",
         message:{
@@ -86,14 +97,39 @@ export default   function Board({ slug}:{ slug:string})
           height:newy - lastY,
           width:newx - lastX,
           x:lastX,
-          y:lastY
+          y:lastY,
+          status:"inter"
         }
       }))
        
     };
 
     const handleUp = () => {
-      draw_rect(ctx, lastX, lastY, newX - lastX, newY - lastY,color,shape);
+      
+      socket!.send(JSON.stringify({
+        type:"message",
+        message:{
+          slug,
+          shape,
+          color,
+          height:newY - lastY,
+          width:newX - lastX,
+          x:lastX,
+          y:lastY,
+          status:"end"
+        }
+          }))
+          // 
+          const data={
+        shape,
+        color,
+        height:newY - lastY,
+        width:newX - lastX,
+        x:lastX,
+        y:lastY,
+        status:"end"
+      };
+      Setmessages(messages=>[...messages,data]);
       setIsDrawing(false);
       console.log("Mouse up");
     };
@@ -113,13 +149,37 @@ export default   function Board({ slug}:{ slug:string})
     
   }, [isDrawing, lastX, lastY, newX, newY]);
 
+   useEffect(()=>{
+    if(isDrawing == false)
+      { console.log("filtering");
+        const temp=messages.filter(m=>m.status==="end");
+        Setmessages(temp);
+        console.log("after filtering",messages.length);
+      }  
 
+   },[isDrawing])
    useEffect(()=>{
       if(socket)
       {
-        socket.send(JSON.stringify({type:"prev_message",message:{}}));
+        console.log("sending req for prev messages");
+        socket.send(JSON.stringify({type:"prev_messages",message:{slug}}));
       }
-    },[])
+    },[socket])
+
+    useEffect(()=>{
+        messages.forEach(message=>{
+          if(message.shape==="circle")
+          {
+            draw_rect(canvasRef.current!.getContext("2d")!,message.x,message.y,message.width,message.height,message.color,message.shape);
+          }
+          else if(message.shape==="rect")
+          {
+            draw_rect(canvasRef.current!.getContext("2d")!,message.x,message.y,message.width,message.height,message.color,message.shape);
+          }
+          
+        });
+        console.log("length of messages",messages.length);
+    },[messages]);
 
 if(socket !== null)
 {
@@ -130,7 +190,11 @@ if(socket !== null)
     }
     else if(message.type === "prev_messages")
     {
-      Setmessages(messages=>[...messages,message.message]);
+      Setmessages(messages=>[...messages,...message.message]);
+      console.log("prev messages recieved",message.message);
+      console.log("all messages",messages);
+
+   
     }
     else if(message.type === "invalid access")
     {

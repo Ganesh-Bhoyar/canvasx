@@ -135,7 +135,7 @@ class UserManager{
             const chat=await client.message.findMany({
                 where:{
                     
-                    slugid:slug
+                 slugid:slug
                 }
             });
             if(chat)
@@ -144,7 +144,7 @@ class UserManager{
             }
             else
             {
-                socket.send(JSON.stringify({type:"Prev_messages",message:[]}));
+                socket.send(JSON.stringify({type:"prev_messages",message:[]}));
             }
         }
         else
@@ -158,10 +158,11 @@ class UserManager{
         this.users=this.users?.filter(user=>user.id!==id) || [];
     }
 
-    sendmessage=async(id:string,shape:string,color:string,height:number,width:number,x:number,y:number,socket:WebSocket,slug:string)=>{
+    sendmessage=async(id:string,shape:string,color:string,height:number,width:number,x:number,y:number,socket:WebSocket,slug:string,status:string)=>{
 
         //check user is jioned the the seding message room
         const user=this.users?.find(user=>user.id===id);
+        console.log(this.users);
         if(!user?.joinedRooms.includes(slug))
         {
             socket.send(JSON.stringify({type:"error",message:"you are not joined this room"}));
@@ -170,7 +171,32 @@ class UserManager{
       
         
 
-        const chat= await client.message.create({
+        // const chat= await client.message.create({
+        //     data:{
+              
+        //         userid:id,
+        //         slugid:slug,
+        //         shape,
+        //         color,
+        //         height,
+        //         width,
+        //         x,
+        //         y
+
+        //     }
+        // });
+        const chat={userid:id,slugid:slug,shape,color,height,width,x,y};
+          this.users?.forEach(user=>{
+            if(user.joinedRooms.includes(slug) && user.id!==id)
+            {
+                user.socket.send(JSON.stringify({type:"message",message:chat}));
+                console.log(`message sent to ${user.id}`);
+            }
+        });
+        
+          
+        if(status=="end")
+        {const mess= await client.message.create({
             data:{
               
                 userid:id,
@@ -183,14 +209,7 @@ class UserManager{
                 y
 
             }
-        });
-          this.users?.forEach(user=>{
-            if(user.joinedRooms.includes(slug) && user.id!==id)
-            {
-                user.socket.send(JSON.stringify({type:"message",message:chat}));
-                console.log(`message sent to ${user.id}`);
-            }
-        });
+        });}
 
         if(chat)
         {

@@ -47,7 +47,8 @@ interface message{
         height:number,
         width:number,
         x:number,
-        y:number
+        y:number,
+        status:string
    
     }
     };

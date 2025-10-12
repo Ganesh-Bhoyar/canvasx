@@ -90,5 +90,14 @@ catch(e){
 }
 });
 
+
+userrouter.get("/rooms",async (req,res)=>{
+     
+    const rooms= await client.room.findMany({
+         
+    });
+    res.status(200).json({rooms});
+});
+
 export {userrouter};
         

@@ -1,52 +1,61 @@
 "use client";
 
-
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { WS_URL } from "@/config";
-import { set } from "zod";
 
 interface SocketContextType {
   socket: WebSocket | null;
 }
 
-const WebSocketContext = createContext<SocketContextType | null>(null);
+const WebSocketContext = createContext<SocketContextType>({ socket: null });
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const socketRef = useRef<WebSocket | null>(null);
-  const [auth, setAuth] = useState<string | null>(null);
+  // ✅ Store the socket in state to trigger re-renders on connection
+  const [socket, setSocket] = useState<WebSocket | null>(null);
 
-   if(!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED)
-   {
-    socketRef.current = new WebSocket(`${WS_URL}/?token=${auth}`);
-    console.log(auth);
-    console.log(`websokcet connected ${socketRef.current.readyState}`)
-    console.log("new soket created");
-  }
-     
-
+  // This effect runs only once to get the token
   useEffect(() => {
-    if(auth == null)
-      {
-        setAuth(localStorage.getItem("authorization"));
-      }
-    return () => {
-      
-      if(socketRef.current) {
-        socketRef.current.close();
-      }
-    };
-  }, []);
-  return (
+    const token = localStorage.getItem("authorization");
+    
+    if (!token) {
+      console.error("No authorization token found. Cannot connect WebSocket.");
+      return;
+    }
 
-  <WebSocketContext.Provider value={{ socket: socketRef.current }}>
+    // ✅ All connection logic is now safely inside useEffect
+    const newSocket = new WebSocket(`${WS_URL}/?token=${token}`);
+
+    newSocket.onopen = () => {
+      console.log("WebSocket connected successfully!");
+      setSocket(newSocket);
+    };
+
+    newSocket.onclose = () => {
+      console.log("WebSocket disconnected.");
+      setSocket(null); // Clear the socket when it closes
+    };
+    
+    newSocket.onerror = (error) => {
+        console.error("WebSocket Error:", error);
+    };
+
+    // ✅ Cleanup function: This will run when the component unmounts
+    return () => {
+      console.log("Closing WebSocket connection.");
+      newSocket.close();
+    };
+  }, []); // The empty array [] ensures this runs only once on mount
+
+  return (
+    <WebSocketContext.Provider value={{ socket }}>
       {children}
     </WebSocketContext.Provider>
-  )
+  );
 };
 
 export const useWebSocket = () => {
   const context = useContext(WebSocketContext);
-  if (context === undefined) {
+  if (context === undefined || context === null) {
     throw new Error('useWebSocket must be used within a WebSocketProvider');
   }
   return context;

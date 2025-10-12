@@ -74,8 +74,8 @@ wss.on('connection',(ws,request)=>{
 
         else if(message.type==="message")
         {
-            const {slug ,shape,color,height,width,x,y}=message.message;
-            userManager.sendmessage(userid,shape,color,height,width,x,y,ws,slug);
+            const {slug ,shape,color,height,width,x,y,status}=message.message;
+            userManager.sendmessage(userid,shape,color,height,width,x,y,ws,slug,status);
         }
 
         else if(message.type==="leave_room")
