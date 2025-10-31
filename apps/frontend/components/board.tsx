@@ -167,6 +167,9 @@ export default   function Board({ slug}:{ slug:string})
     },[socket])
 
     useEffect(()=>{
+      
+        if(!canvasRef.current) return;
+        canvasRef.current.getContext("2d")!.clearRect(0, 0, innerWidth, innerHeight);
         messages.forEach(message=>{
           if(message.shape==="circle")
           {
@@ -188,14 +191,23 @@ if(socket !== null)
     if (message.type === "message") {
       Setmessages(messages=>[...messages,message.message]);
     }
-    else if(message.type === "prev_messages")
-    {
-      Setmessages(messages=>[...messages,...message.message]);
-      console.log("prev messages recieved",message.message);
-      console.log("all messages",messages);
+    else if (message.type === "prev_messages") {
+    
+    if (Array.isArray(message.message) && message.message.length > 0) {
 
-   
+      
+      const updatedMessages = message.message.map((msg: any) => ({
+        ...msg,          
+        status: "end"    
+      }));
+
+       
+      Setmessages(prev => [...prev, ...updatedMessages]);
+
+     
+      console.log("Previous messages with status added:", updatedMessages);
     }
+  }
     else if(message.type === "invalid access")
     {
       console.log(message.message);
@@ -216,7 +228,7 @@ if(socket !== null)
 
   return ( <div className="flex flex-col items-center justify-center overflow-hidden width-full height-screen">
       
-   <canvas ref={canvasRef} width={innerWidth} height={innerHeight - 1} className="border border-white bg-black  touch-none">
+   <canvas ref={canvasRef} width={innerWidth} height={innerHeight - 1} className="border border-white bg-[#121212]  touch-none">
 
  
 

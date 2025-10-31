@@ -71,7 +71,10 @@ wss.on('connection',(ws,request)=>{
             const {name }=message.message;
             userManager.createroom(name,ws,userid);
         }
-
+        else if(message.type=="update")
+        {
+           userManager.updatecanvas(userid,ws,message.message.data,message.message.slug); 
+        }
         else if(message.type==="message")
         {
             const {slug ,shape,color,height,width,x,y,status}=message.message;

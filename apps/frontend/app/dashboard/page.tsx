@@ -149,7 +149,7 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
       className="group"
     >
    
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden" onClick={()=>{router.push(`/room/${room.id}`)}}>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden" onClick={()=>{router.push(`/newdash`)}}>
           {/* Owner badge */}
           {room.isOwner && (
             <div className="absolute top-4 right-4">

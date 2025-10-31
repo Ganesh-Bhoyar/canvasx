@@ -8,7 +8,15 @@ interface user_active{
          
              }
 };
-
+interface update
+{
+    type:"update",
+     message:{
+         data:any,
+         slug:string
+       
+    }
+}
 interface join_room{
     type:"join_room",
     message:{
@@ -72,6 +80,6 @@ interface disconnect{
 };
 
 
-type ws_message=user_active|join_room|prev_messages|create_room|message|leave_room|disconnect;
+type ws_message=user_active|join_room|prev_messages|create_room|message|leave_room|disconnect|update;
 
 export type {ws_message};

@@ -118,7 +118,48 @@ class UserManager{
         console.log("users aray:",this.users);
         
     }
+ updatecanvas=async(id:string,socket:WebSocket,data:any,slug:string)=>{
+       const user=this.users?.find(user=>user.id===id);
+        console.log(this.users);
+        if(!user?.joinedRooms.includes(slug))
+        {
+            socket.send(JSON.stringify({type:"error",message:"you are not joined this room"}));
+            return ;
+        }
+      
+        
+ 
+        const chat=data;
+          this.users?.forEach(user=>{
+            if(user.joinedRooms.includes(slug) && user.id!==id)
+            {   console.log("sending update to ",user.id,slug);
+                user.socket.send(JSON.stringify({type:"update",message:chat}));
+                console.log(`message sent to ${user.id}`);
+            }
+        });
+        
+          
+        // if(status=="end")
+        // {const mess= await client.message.create({
+        //     data:{
+              
+        //         userid:id,
+        //         slugid:slug,
+        //         shape,
+        //         color,
+        //         height,
+        //         width,
+        //         x,
+        //         y
 
+        //     }
+        // });}
+
+        if(chat)
+        {
+            socket.send(JSON.stringify({type:"message sent successfully",message:`to ${slug} group`  }));
+        }
+ }
     prevmessage=async(id:string,socket:WebSocket,slug:string)=>{
           const rooms= await client.user.findUnique({
             where:{id},
@@ -185,7 +226,7 @@ class UserManager{
 
         //     }
         // });
-        const chat={userid:id,slugid:slug,shape,color,height,width,x,y};
+        const chat={userid:id,slugid:slug,shape,color,height,width,x,y,status};
           this.users?.forEach(user=>{
             if(user.joinedRooms.includes(slug) && user.id!==id)
             {

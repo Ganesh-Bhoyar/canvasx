@@ -63,8 +63,8 @@ export default function CanvasPage() {
   }
 
   return (
-    <div className="overflow-hidden overflow-y-hidden">
-      Room Slug: {slug}
+    <div className="fixed inset-0 overflow-hidden">
+      {/* Room Slug: {slug} */}
       <Board slug={slug} />
     </div>
   );
