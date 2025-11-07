@@ -1,9 +1,21 @@
+"use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function Home()
-{
-  return ( <div>
-    welcome to canvasx
-  </div>
-  )
+export default function HomePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("authorization");
+    if (token) {
+      router.push("/dashboard");
+    } else {
+      router.push("/landing");
+    }
+  }, [router]);
+
+  return null;  
 }
+
+

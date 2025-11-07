@@ -210,19 +210,10 @@ const Footer = () => {
           <div className="container mx-auto px-6 py-6">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
               <div className="text-gray-400 text-sm">
-                © 2024 CanvasX. All rights reserved.
+                © 2025 CanvasX. All rights reserved.
               </div>
 
-              <div className="flex items-center space-x-2 text-gray-400 text-sm">
-                <span>Made with</span>
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <Heart className="w-4 h-4 text-red-500 fill-current" />
-                </motion.div>
-                <span>for creative teams worldwide</span>
-              </div>
+              
             </div>
           </div>
         </motion.div>

@@ -1,7 +1,8 @@
 import AdvBoard from "@/components/adv_board";
+import CanvasXBoard from "@/components/newdash";
 
 export default function NewDash() {
     return (
-        <AdvBoard slug="missionendsem"></AdvBoard>
+         <CanvasXBoard slug="missionendsem"></CanvasXBoard>
     )
 }
