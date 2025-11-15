@@ -26,6 +26,15 @@ interface join_room{
    
 };
 
+interface update_database{
+    type:"update_database",
+    message:{
+        slug:string,
+        data:any
+       
+    }
+}
+
 interface prev_messages{
     type:"prev_messages",
     message:{
@@ -80,6 +89,6 @@ interface disconnect{
 };
 
 
-type ws_message=user_active|join_room|prev_messages|create_room|message|leave_room|disconnect|update;
+type ws_message=user_active|join_room|prev_messages|create_room|message|leave_room|disconnect|update|update_database;
 
 export type {ws_message};

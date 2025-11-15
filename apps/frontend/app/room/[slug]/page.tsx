@@ -40,6 +40,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Board from "../../../components/board";
+import CanvasXBoard from '@/components/newdash';
 
 // Note: No 'Props' type is needed from the server anymore.
 
@@ -65,7 +66,8 @@ export default function CanvasPage() {
   return (
     <div className="fixed inset-0 overflow-hidden">
       {/* Room Slug: {slug} */}
-      <Board slug={slug} />
+      {/* <Board slug={slug} /> */}
+      <CanvasXBoard slug={slug}></CanvasXBoard>
     </div>
   );
 }

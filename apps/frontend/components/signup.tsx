@@ -47,9 +47,18 @@ export function Signup() {
     
     <Form {...form}  >
         {/* <div className="text-black font-bold flex justify-end outline-none focus:border-2 focus:border-blue-500  cursor-pointer border-gray-400 w-[20px] h-12"><Crossicon></Crossicon></div> */}
-        <div className="text-center text-3xl font-bold flex col    align-items justify-center"><span className="ml-[97px]">Sign Up</span><span className="ml-[85px]  cursor-pointer hover:border-2 hover:border-slate-500 hover:rounded-lg" onClick={()=>{
+        <div className="text-center text-3xl font-bold flex col    align-items justify-center"><span className="ml-[97px]">Sign Up</span><span className="ml-[85px]  cursor-pointer  hover:border-slate-500 hover:rounded-lg" onClick={()=>{
           window.location.href="/"
-        }}> <CrossIcon className=" transform rotate-45" /></span></div>
+        }}> <CrossIcon
+  className="w-5 h-5 fill-black text-black rotate-45 
+             hover:scale-150 hover:rotate-180 
+             transition-transform duration-300 ease-in-out cursor-pointer"
+/>
+
+
+
+
+</span></div>
         <div className="text-center px-6">Enter your information to create an Account</div>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <FormField

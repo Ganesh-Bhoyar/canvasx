@@ -14,6 +14,7 @@ export const siginShema=z.object({
 })
 
 export const roomSchema=z.object({
-    name:z.string()
+    name:z.string(),
+    desc:z.string()
 });
 

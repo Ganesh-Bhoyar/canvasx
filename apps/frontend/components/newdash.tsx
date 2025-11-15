@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, use } from 'react';
-import {useCallback} from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Square,
@@ -30,10 +29,13 @@ import {
   Image as ImageIcon,
   Copy,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  CopyIcon,
+  Router
 } from 'lucide-react';
 import * as fabric from "fabric";
- 
+
+import { useRouter } from 'next/navigation'; 
 import { useWebSocket } from "./context/websocketcontext";
 
 // TypeScript interfaces
@@ -56,13 +58,13 @@ interface ColorOption {
   value: string;
 }
 
- function throttle(func: Function, limit: number) {
+function throttle(func: Function, limit: number) {
   let last = 0;
-  return ( ) => {
+  return () => {
     const now = Date.now();
     if (now - last >= limit) {
       last = now;
-      func ();
+      func();
     }
   };
 }
@@ -72,7 +74,7 @@ const CanvasXBoard = ({ slug }: { slug: string }) => {
   // STATE MANAGEMENT
   // ============================================
 
-  const [selectedTool, setSelectedTool] = useState<string>('rectangle');
+  const [selectedTool, setSelectedTool] = useState<string>('select');
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   const [selectedColor, setSelectedColor] = useState<string>('#000000');
   const [fillColor, setFillColor] = useState<string>('transparent');
@@ -84,16 +86,44 @@ const CanvasXBoard = ({ slug }: { slug: string }) => {
   const [isToolbarCollapsed, setIsToolbarCollapsed] = useState<boolean>(false);
   const [activeUsers, setActiveUsers] = useState<number>(3);
   const [showGridLines, setShowGridLines] = useState<boolean>(false);
+  const [clipboard, setClipboard] = useState<fabric.Object | null>(null);
+  const [isCopyMode, setIsCopyMode] = useState<boolean>(false);
+
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const colorPaletteRef = useRef<HTMLDivElement>(null);
   const fillPaletteRef = useRef<HTMLDivElement>(null);
 
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
-    const ws = useWebSocket()?.socket;
+  const ws = useWebSocket()?.socket;
   
-    // Track if update came from remote
-    const isRemoteUpdate = useRef(false);
+  // Track if update came from remote
+  const isRemoteUpdate = useRef(false);
+  
+  // **FIX #1: Use a ref to store the current tool so we always have the latest value**
+  const selectedToolRef = useRef<string>(selectedTool);
+  const selectedColorRef = useRef<string>(selectedColor);
+  const fillColorRef = useRef<string>(fillColor);
+  const strokeWidthRef = useRef<number>(strokeWidth);
+  const clippedRef = useRef<any>(null);
+  const Router = useRouter();
+
+  // Update refs whenever state changes
+  useEffect(() => {
+    selectedToolRef.current = selectedTool;
+  }, [selectedTool]);
+
+  useEffect(() => {
+    selectedColorRef.current = selectedColor;
+  }, [selectedColor]);
+
+  useEffect(() => {
+    fillColorRef.current = fillColor;
+  }, [fillColor]);
+
+  useEffect(() => {
+    strokeWidthRef.current = strokeWidth;
+  }, [strokeWidth]);
 
   // ============================================
   // PREDEFINED COLORS
@@ -128,71 +158,304 @@ const CanvasXBoard = ({ slug }: { slug: string }) => {
     { type: 'freehand', icon: Pen, label: 'Draw' },
     { type: 'text', icon: Type, label: 'Text' },
   ];
-const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
-  const cn = canvas || opt.target?.canvas;
-  if (!cn || !opt.e) return;
 
-  const pointer = cn.getPointer(opt.e);
-  console.log("selected tool in addeffect",selectedTool);
-  if (selectedTool === "rectangle") {
-    const rect = new fabric.Rect({
-      left: pointer.x,
-      top: pointer.y,
-      fill: selectedColor.trim(),
-      width: 100,
-      height: 100,
-      stroke: selectedColor.trim(),
-      strokeWidth,
-      originX: "left",
-      originY: "top",
-      hasRotatingPoint: false,
-      hasBorders: false,
-      hasControls: false,
-      lockMovementX: true,
-      lockMovementY: true,
-      lockRotation: true,
-      lockScalingFlip: true,
-      lockScalingX: true,
-      lockScalingY: true,
-      lockUniScaling: true,
-    });
 
-    cn.add(rect);
-    cn.renderAll();
+ 
 
-    setSelectedTool("select");
+// Add this state at the top with other states
+
+
+// Add this handler function
+const handleCopy = () => {
+  if (!canvas) return;
+  
+  const activeObject = canvas.getActiveObject();
+  if (!activeObject) {
+    console.log('No object selected to copy');
+    return;
   }
-}, [selectedTool, selectedColor, strokeWidth]);
-
-      
+ canvas?.getActiveObject()?.clone()
+    .then((cloned) => {
+     setClipboard(cloned);
+     setIsCopyMode(true);
+    console.log('Object copied to clipboard');
+     setTimeout(() => {
+      setIsCopyMode(false);
+    }, 2000);
+    });
+  // Clone the object to clipboard
    
+};
+
+const handlePaste = async () => {
+  if (!canvas || !clipboard) {
+    console.log('Nothing to paste');
+    return;
+  }
+
+  // Clone the clipboard object
+  const clonedObj = await clipboard.clone();
+  canvas.discardActiveObject();
+  clonedObj.set({
+    left: clonedObj.left + 10,
+    top: clonedObj.top + 10,
+    evented: true,
+  });
+  if (clonedObj instanceof fabric.ActiveSelection) {
+    // active selection needs a reference to the canvas.
+    clonedObj.canvas = canvas;
+    clonedObj.forEachObject((obj) => {
+      canvas.add(obj);
+    });
+    // this should solve the unselectability
+    clonedObj.setCoords();
+  } else {
+    canvas.add(clonedObj);
+  }
+  clipboard.top += 10;
+  clipboard.left += 10;
+  canvas.setActiveObject(clonedObj);
+  canvas.requestRenderAll();
+  console.log('Object pasted from clipboard');
+  setIsCopyMode(false);
+  
+};
  
- 
+
+
+async function Paste() {
+  // clone again, so you can do multiple copies.
+  if (!canvas || !clippedRef.current) return;
+  const clonedObj = await clippedRef.current.clone();
+  canvas?.discardActiveObject();
+  clonedObj.set({
+    left: clonedObj.left + 10,
+    top: clonedObj.top + 10,
+    evented: true,
+  });
+  if (clonedObj instanceof fabric.ActiveSelection) {
+    // active selection needs a reference to the canvas.
+    if (!canvas) return;
+    clonedObj.canvas = canvas;
+    clonedObj.forEachObject((obj) => {
+      canvas.add(obj);
+    });
+    // this should solve the unselectability
+    clonedObj.setCoords();
+  } else {
+    canvas.add(clonedObj);
+  }
+  clippedRef.current.top += 10;
+  clippedRef.current.left += 10;
+  canvas.setActiveObject(clonedObj);
+  canvas.requestRenderAll();
+}
+  const handleMouseDown = useCallback((opt: fabric.TPointerEventInfo<fabric.TPointerEvent>,canvas: fabric.Canvas | null) => {
+    if (!canvas || !opt.e) return;
+
+    const pointer = canvas.getPointer(opt.e);
+    const currentTool = selectedToolRef.current;
+    const currentColor = selectedColorRef.current;
+    const currentFillColor = fillColorRef.current;
+    const currentStrokeWidth = strokeWidthRef.current;
+
+    console.log("Mouse down - Current tool:", currentTool);
+
+    // Handle different tools
+    switch (currentTool) {
+      case 'rectangle': {
+        const rect = new fabric.Rect({
+          left: pointer.x,
+          top: pointer.y,
+          fill: currentFillColor === 'transparent' ? 'transparent' : currentFillColor,
+          width: 100,
+          height: 100,
+          stroke: currentColor,
+          strokeWidth: currentStrokeWidth,
+        });
+        canvas.add(rect);
+        canvas.setActiveObject(rect);
+        canvas.renderAll();
+        
+        // Auto-switch back to select tool after drawing
+        setSelectedTool('select');
+        break;
+      }
+
+      case 'circle': {
+        const circle = new fabric.Circle({
+          left: pointer.x,
+          top: pointer.y,
+          radius: 50,
+          fill: currentFillColor === 'transparent' ? 'transparent' : currentFillColor,
+          stroke: currentColor,
+          strokeWidth: currentStrokeWidth,
+        });
+        canvas.add(circle);
+        canvas.setActiveObject(circle);
+        canvas.renderAll();
+        
+        setSelectedTool('select');
+        break;
+      }
+
+      case 'triangle': {
+        const triangle = new fabric.Triangle({
+          left: pointer.x,
+          top: pointer.y,
+          width: 100,
+          height: 100,
+          fill: currentFillColor === 'transparent' ? 'transparent' : currentFillColor,
+          stroke: currentColor,
+          strokeWidth: currentStrokeWidth,
+        });
+        canvas.add(triangle);
+        canvas.setActiveObject(triangle);
+        canvas.renderAll();
+        
+        setSelectedTool('select');
+        break;
+      }
+
+      case 'line': {
+        const line = new fabric.Line([pointer.x, pointer.y, pointer.x + 100, pointer.y], {
+          stroke: currentColor,
+          strokeWidth: currentStrokeWidth,
+        });
+        canvas.add(line);
+        canvas.setActiveObject(line);
+        canvas.renderAll();
+        
+        setSelectedTool('select');
+        break;
+      }
+
+      case 'select':
+        // Default selection behavior - fabric.js handles this
+        break;
+
+      case 'pan':
+        // Pan tool - implement panning logic if needed
+        break;
+
+      case 'freehand':
+        console.log("Enabling freehand drawing mode");
+        console.log("Freehand brush color:", fillColorRef.current);
+        console.log("Freehand brush width:", currentStrokeWidth);
+        console.log(canvas.freeDrawingBrush);
+         
+        if(!canvas.freeDrawingBrush) return;
+     canvas.isDrawingMode = true;
+  canvas.selection = false;
+  // prefer to use selectedColorRef.current for stroke color:
+  canvas.freeDrawingBrush.color = selectedColorRef.current;
+  canvas.freeDrawingBrush.width = currentStrokeWidth || 1;
+        // canvas.freeDrawingBrush.shadow = new fabric.Shadow({
+        //   blur:  0,
+        //   offsetX: 0,
+        //   offsetY: 0,
+        //   affectStroke: true,
+        //   color: selectedColorRef.current,
+        // });
+        break;
+
+      case 'text': {
+        const text = new fabric.IText('Double click to edit', {
+          left: pointer.x,
+          top: pointer.y,
+          fill: currentColor,
+          fontSize: 20,
+        });
+        canvas.add(text);
+        canvas.setActiveObject(text);
+        canvas.renderAll();
+        
+        setSelectedTool('select');
+        break;
+      }
+
+      default:
+        break;
+    }
+  }, [canvas]); // Only depend on canvas, not on state values
+
+  // **FIX #3: Handle selection mode changes**
+  useEffect(() => {
+    if (!canvas) return;
+
+    // Disable drawing mode when not in freehand mode
+    if (selectedTool !== 'freehand') {
+      canvas.isDrawingMode = false;
+    }
+
+    // Enable/disable selection based on tool
+    if (selectedTool === 'select') {
+      canvas.selection = true;
+      canvas.forEachObject((obj) => {
+        obj.selectable = true;
+        obj.evented = true;
+      });
+    } else if (selectedTool === 'pan') {
+      canvas.selection = false;
+      canvas.forEachObject((obj) => {
+        obj.selectable = false;
+        obj.evented = false;
+      });
+    } else {
+      // For drawing tools, disable selection temporarily
+      canvas.selection = false;
+      canvas.discardActiveObject();
+      canvas.renderAll();
+    }
+  }, [selectedTool, canvas]);
+
   const handleAddShape = (type: string) => {
-    console.log('Adding shape:', type);
+    console.log('Selecting tool:', type);
     setSelectedTool(type);
-    console.log("seleted tool",selectedTool)
-    // TODO: Connect to fabric.js shape creation
   };
 
   const handleColorChange = (color: string) => {
     console.log('Changing stroke color:', color);
     setSelectedColor(color);
     setShowColorPalette(false);
-    // TODO: Apply to selected object or next shape
+    
+    // Apply to selected object if any
+    if (canvas) {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject) {
+        activeObject.set('stroke', color);
+        canvas.renderAll();
+      }
+    }
   };
 
   const handleFillColorChange = (color: string) => {
     console.log('Changing fill color:', color);
     setFillColor(color);
     setShowFillPalette(false);
-    // TODO: Apply to selected object or next shape
+    
+    // Apply to selected object if any
+    if (canvas) {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject && 'fill' in activeObject) {
+        activeObject.set('fill', color === 'transparent' ? 'transparent' : color);
+        canvas.renderAll();
+      }
+    }
   };
 
   const handleStrokeWidthChange = (width: number) => {
     console.log('Changing stroke width:', width);
     setStrokeWidth(width);
-    // TODO: Apply to selected object or next shape
+    
+    // Apply to selected object if any
+    if (canvas) {
+      const activeObject = canvas.getActiveObject();
+      if (activeObject && 'strokeWidth' in activeObject) {
+        activeObject.set('strokeWidth', width);
+        canvas.renderAll();
+      }
+    }
   };
 
   const handleUndo = () => {
@@ -208,41 +471,53 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
   const handleClear = () => {
     console.log('Clear canvas');
     if (window.confirm('Are you sure you want to clear the canvas?')) {
-      // TODO: Clear all objects from canvas
+      canvas?.clear();
     }
   };
 
   const handleZoomIn = () => {
-    const newZoom = Math.min(zoom + 10, 200);
+    const newZoom = Math.min(zoom + 10, 500);
     setZoom(newZoom);
     console.log('Zoom in:', newZoom);
-    // TODO: Apply zoom to fabric.js canvas
+    if (canvas) {
+      canvas.setZoom(newZoom / 100);
+      canvas.renderAll();
+    }
   };
 
   const handleZoomOut = () => {
-    const newZoom = Math.max(zoom - 10, 50);
+    const newZoom = Math.max(zoom - 10, 10);
     setZoom(newZoom);
     console.log('Zoom out:', newZoom);
-    // TODO: Apply zoom to fabric.js canvas
+    if (canvas) {
+      canvas.setZoom(newZoom / 100);
+      canvas.renderAll();
+    }
   };
 
   const handleExport = () => {
     console.log('Export canvas');
-    // TODO: Export canvas as PNG/SVG/JSON
+    // if (canvas) {
+    //   const dataURL = canvas.toDataURL({
+    //     format: 'png',
+    //     quality: 1,
+    //   });
+    //   const link = document.createElement('a');
+    //   link.download = 'canvas-export.png';
+    //   link.href = dataURL;
+    //   link.click();
+    // }
   };
  
   const handleToggleGrid = () => {
     setShowGridLines(!showGridLines);
     console.log('Toggle grid:', !showGridLines);
-    // TODO: Show/hide grid on canvas
   };
 
   const handleToggleTheme = () => {
     setIsDarkMode(!isDarkMode);
     console.log('Toggle theme:', !isDarkMode);
   };
-
-
 
   // ============================================
   // CLICK OUTSIDE TO CLOSE PALETTES
@@ -256,93 +531,114 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
       if (fillPaletteRef.current && !fillPaletteRef.current.contains(event.target as Node)) {
         setShowFillPalette(false);
       }
-      
+    };
+    ws?.send(JSON.stringify({ type: "prev_messages", message: { slug} }));
+    document.addEventListener('mousedown', handleClickOutside);
+    return () =>{ document.removeEventListener('mousedown', handleClickOutside);
+           ws?.send(JSON.stringify({ type: "update_database", message: { slug, data: canvas?.toJSON() } }));
+    };
+  }, [ws]);
+
+  // ============================================
+  // GRID BACKGROUND EFFECT
+  // ============================================
+
+  useEffect(() => {
+   const svgString = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+    <rect width="20" height="20" fill="none" stroke="rgba(200,200,200,0.1)" stroke-width="1"/>
+  </svg>
+`;
+
+// Convert SVG string directly into a base64-encoded data URL
+const base64Svg = `data:image/svg+xml;base64,${btoa(svgString)}`;
+
+const img = new Image();
+img.src = base64Svg;
+
+img.onload = () => {
+  const pattern = new fabric.Pattern({
+    source: img,
+    repeat: showGridLines ? 'repeat' : 'no-repeat',
+  });
+  if (!canvas) return;
+  canvas.backgroundColor = pattern;
+  canvas.renderAll();
+ 
+
+    };
+  }, [showGridLines, isDarkMode, canvas]);
+
+  // ============================================
+  // **FIX #4: CANVAS INITIALIZATION - Add event listener once**
+  // ============================================
+
+  
+  useEffect(() => {
+    console.log("Initializing fabric canvas", canvasRef.current);
+    if (!canvasRef.current) return;
+    
+    const fabricCanvas = new fabric.Canvas(canvasRef.current,{
+      isDrawingMode: true
+    });
+         fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+
+    setCanvas(fabricCanvas);
+    console.log("fabric canvas initialized", fabricCanvas);
+
+    const resizeCanvas = () => {
+      const container = canvasRef.current?.parentElement;
+      if (!container) return;
+      const { width, height } = container.getBoundingClientRect();
+
+      fabricCanvas.setWidth(width);
+      fabricCanvas.setHeight(height);
+      fabricCanvas.renderAll();
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-  useEffect(() => {
-    console.log("Initializing fabric canvas",canvasRef.current);
-  if (!canvasRef.current) return;
-  const fabricCanvas = new fabric.Canvas(canvasRef.current);
-  setCanvas(fabricCanvas);
-  console.log("fabric canvas initialized",fabricCanvas);
- 
-  const resizeCanvas = () => {
-    const container = canvasRef.current?.parentElement;
-    if (!container) return;
-    const { width, height } = container.getBoundingClientRect();
+    // Call once and on window resize
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
 
-    fabricCanvas.setWidth(width);
-    fabricCanvas.setHeight(height);
-    fabricCanvas.renderAll();
-  };
+    // **Add the mouse:down event listener once with the stable handler**
+    fabricCanvas.on('mouse:down', (opt)=>handleMouseDown(opt,fabricCanvas));
 
-  // Call once and on window resize
-  resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
+    // WebSocket broadcast functions
+    const broadcast = () => {
+      if (isRemoteUpdate.current) return; // skip remote updates
 
-  // Example test shape
-  const rect = new fabric.Rect({
-    left: 100,
-    top: 100,
-    fill: "red",
-    width: 80,
-    height: 80,
-  });
-  fabricCanvas?.add(rect);
-  console.log("rect",fabricCanvas?.getObjects());
-  
-      const broadcast = () => {
-        if (isRemoteUpdate.current) return; // skip remote updates
-  
-        console.log("Broadcasting local update...");
-        ws?.send( JSON.stringify({ type: "update", message: { slug, data: fabricCanvas.toJSON() }, })
-        );
-      };
-  
-      // const subscribeToCanvasEvents = () => {
-      //   fabricCanvas.on("object:added", broadcast);
-      //   fabricCanvas.on("object:modified", broadcast);
-      //   fabricCanvas.on("object:removed", broadcast);
-      // };
-  
-      // const unsubscribeFromCanvasEvents = () => {
-      //   fabricCanvas.off("object:added", broadcast);
-      //   fabricCanvas.off("object:modified", broadcast);
-      //   fabricCanvas.off("object:removed", broadcast);
-      // };
-  
-      //subscribeToCanvasEvents();
-       const throttleBroadcast = throttle(broadcast, 1);
-       fabricCanvas.on("object:added", broadcast);
-        fabricCanvas.on("object:modified", broadcast);
-        fabricCanvas.on("object:removed", broadcast);
-        fabricCanvas.on("object:moving", throttleBroadcast);
-        fabricCanvas.on("object:scaling", throttleBroadcast);
-        fabricCanvas.on("object:rotating", throttleBroadcast);
-        fabricCanvas.on('mouse:down', (opt) => {addeffect(opt,fabricCanvas)});
+      console.log("Broadcasting local update...");
+      ws?.send(JSON.stringify({ 
+        type: "update", 
+        message: { slug, data: fabricCanvas.toJSON() }, 
+      }));
+    };
 
-      ws!.onmessage = (e) => {
+    const throttleBroadcast = throttle(broadcast, 1);
+
+    fabricCanvas.on("object:added", broadcast);
+    fabricCanvas.on("object:modified", broadcast);
+    fabricCanvas.on("object:removed", broadcast);
+    fabricCanvas.on("object:moving", broadcast);
+    fabricCanvas.on("object:scaling", throttleBroadcast);
+    fabricCanvas.on("object:rotating", throttleBroadcast);
+
+    // WebSocket message handler
+    if (ws) {
+      ws.onmessage = (e) => {
+        console.log("Received message:", e.data);
         try {
           const msg = JSON.parse(e.data);
           if (msg.type === "update") {
             console.log("Receiving remote update...");
-            // Temporarily mark as remote to prevent broadcast
             isRemoteUpdate.current = true;
-  
-            // unsubscribeFromCanvasEvents();
-            console.log(msg.message)
+            console.log(msg.message);
             fabricCanvas.loadFromJSON(msg.message, () => {
-            fabricCanvas.renderAll();
-            fabricCanvas.requestRenderAll();
-            console.log("Canvas objects:", fabricCanvas.getObjects());
-  
-              // subscribeToCanvasEvents();
-  
-              // Allow local changes again
-              setTimeout(() =>{
+              fabricCanvas.renderAll();
+              fabricCanvas.requestRenderAll();
+              console.log("Canvas objects:", fabricCanvas.getObjects());
+
+              setTimeout(() => {
                 isRemoteUpdate.current = false;
                 console.log("Remote update complete; re-enabling broadcast");
               }, 200);
@@ -352,22 +648,20 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
           console.error("Failed to parse incoming message:", e.data, error);
         }
       };
-  
-      return () => {
-        //unsubscribeFromCanvasEvents();
-        fabricCanvas.dispose();
-        
-      };
-    }, [slug, ws]);
-  
+    }
+
+    return () => {
+      fabricCanvas.off('mouse:down', (opt)=>handleMouseDown(opt,fabricCanvas));
+      fabricCanvas.dispose();
+      window.removeEventListener("resize", resizeCanvas);
+    };
+  }, [slug, ws]);
 
   // ============================================
   // RENDER: MAIN COMPONENT
   // ============================================
 
   return (
-    
-    
     <div id='canvas' className={`min-h-screen transition-colors duration-300 ${
       isDarkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50'
     }`}>
@@ -384,7 +678,7 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
         <div className="px-6 py-3 flex items-center justify-between">
 
           {/* Logo and title */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3" onClick={()=>{Router.push("/")}}>
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
               <Pen className="w-5 h-5 text-white" />
             </div>
@@ -469,7 +763,7 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
             opacity: 1 
           }}
           transition={{ duration: 0.3 }}
-          className={`relative z-20 ${isToolbarCollapsed ? 'w-0' : 'w-20'}`}
+          className={`relative z-20 ${isToolbarCollapsed ? 'w-20' : 'w-20'}`}
         >
           <div className={`h-full border-r backdrop-blur-sm ${
             isDarkMode 
@@ -534,7 +828,7 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
 
           {/* Collapse/Expand button */}
           <motion.button
-            whileHover={{ scale: 1.1 }}
+            whileHover={{ scale: 1.2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsToolbarCollapsed(!isToolbarCollapsed)}
             className={`absolute -right-3 top-6 z-30 p-1 rounded-full shadow-lg ${
@@ -544,7 +838,7 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
             }`}
           >
             {isToolbarCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-50 h-50" />
             ) : (
               <ChevronLeft className="w-4 h-4" />
             )}
@@ -562,9 +856,9 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5 }}
-           className={`relative w-full h-full rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center ${
-    isDarkMode ? 'bg-gray-800' : 'bg-white'
-  }`}
+            className={`relative w-full h-full rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center ${
+              isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}
             style={{
               width: '90%',
               maxWidth: '1400px',
@@ -574,18 +868,11 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
           >
             {/* Canvas element - This is where fabric.js will be attached */}
             <canvas
-             id='fabric-canvas'
-             ref={canvasRef}
+              id='fabric-canvas'
+              ref={canvasRef}
               width={1550}
               height={800}
-              
               className="w-[95%] h-[95%] rounded-xl border border-gray-300"
-              // style={{
-              //   background: showGridLines 
-              //     ? 'linear-gradient(90deg, rgba(200,200,200,0.1) 1px, transparent 1px), linear-gradient(rgba(200,200,200,0.1) 1px, transparent 1px)'
-              //     : isDarkMode ? '#1F2937' : '#FF0000',
-              //   backgroundSize: showGridLines ? '20px 20px' : 'auto'
-              // }}
             />
 
             {/* Zoom indicator */}
@@ -612,24 +899,37 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
                 : 'bg-white/90 border-gray-200'
             }`}
           >
-            {/* Undo */}
-            <ToolButton
-              icon={Undo2}
-              label="Undo"
-              onClick={handleUndo}
-              isDarkMode={isDarkMode}
-            />
+                      <ToolButton
+            icon={CopyIcon}
+            label="Copy"
+            onClick={handleCopy   }
+            isDarkMode={isDarkMode}
+            isActive={isCopyMode}
+          />
 
-            {/* Redo */}
-            <ToolButton
-              icon={Redo2}
-              label="Redo"
-              onClick={handleRedo}
-              isDarkMode={isDarkMode}
-            />
+          {/* Paste button */}
+                <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handlePaste}
+                disabled={!clipboard}
+                className={`p-2 rounded-lg transition-colors ${
+                  !clipboard
+                    ? isDarkMode 
+                      ? 'bg-gray-700 text-gray-500 opacity-50 cursor-not-allowed' 
+                      : 'bg-gray-100 text-gray-400 opacity-50 cursor-not-allowed'
+                    : isDarkMode 
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                title={clipboard ? "Paste" : "Nothing to paste"}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </motion.button>
 
             <Divider isDarkMode={isDarkMode} />
-
             {/* Stroke color picker */}
             <div className="relative" ref={colorPaletteRef}>
               <motion.button
@@ -870,19 +1170,23 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
                   </motion.button>
                 </div>
 
-                {/* Layer list placeholder */}
+                {/* Layer list */}
                 <div className="space-y-2">
-                  {['Rectangle 1', 'Circle 1', 'Path 1'].map((layer, index) => (
+                  {canvas?.getObjects().map((obj, index) => (
                     <motion.div
-                      key={layer}
+                      key={index}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className={`flex items-center justify-between p-3 rounded-lg ${
+                      className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${
                         isDarkMode 
                           ? 'bg-gray-700 hover:bg-gray-600' 
                           : 'bg-gray-50 hover:bg-gray-100'
                       }`}
+                      onClick={() => {
+                        canvas.setActiveObject(obj);
+                        canvas.renderAll();
+                      }}
                     >
                       <div className="flex items-center space-x-3">
                         <Square className={`w-4 h-4 ${
@@ -891,23 +1195,25 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
                         <span className={`text-sm ${
                           isDarkMode ? 'text-gray-300' : 'text-gray-700'
                         }`}>
-                          {layer}
+                          {obj.type} {index + 1}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <button className={`p-1 rounded ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-600 text-gray-400' 
-                            : 'hover:bg-gray-200 text-gray-600'
-                        }`}>
-                          <Unlock className="w-4 h-4" />
-                        </button>
-                        <button className={`p-1 rounded ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-600 text-gray-400' 
-                            : 'hover:bg-gray-200 text-gray-600'
-                        }`}>
-                          <Copy className="w-4 h-4" />
+                        <button 
+                          className={`p-1 rounded ${
+                            isDarkMode 
+                              ? 'hover:bg-gray-600 text-gray-400' 
+                              : 'hover:bg-gray-200 text-gray-600'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            canvas.remove(obj);
+                            setShowLayersPanel(false);
+                            setShowLayersPanel(true);
+                            canvas.renderAll();
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </motion.div>
@@ -919,7 +1225,6 @@ const addeffect = useCallback((opt: any, canvas: fabric.Canvas | null) => {
         </AnimatePresence>
       </div>
     </div>
-    
   );
 };
 

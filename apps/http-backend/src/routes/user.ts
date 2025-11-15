@@ -1,5 +1,6 @@
 import {Router} from 'express';
-import client from 'db/client';
+import client ,{Prisma} from 'db/client';
+ 
  const bcrypt=require('bcrypt');
 const jwt=require('jsonwebtoken');
 import {auth} from '../middlewares/usermiddleware';
@@ -61,12 +62,15 @@ userrouter.post("/signin",async (req,res)=>{
 });
 
 userrouter.post("/createroom",auth,async (req,res)=>{
+    console.log("Received room creation request with body:", req.body);
     const parsed=roomSchema.safeParse(req.body);
+    console.log("Parsed data:", parsed);
     if(!parsed.success)
     {   res.json({message:"Invalid data"});
         return ;
     }
-    const {name}=parsed.data;
+    const {name,desc}=parsed.data;
+    console.log("Parsed room data:", { name: name, desc: desc });
     const userid=(req as any).id;
 
     
@@ -75,13 +79,14 @@ try    {
     const room = await client.room.create({
         data:{
             name,
+            desc,
             adminId:userid,
             slug:slugfiy(name,{lower:true,strict:true})
         }
     });
     if(room)
-    {
-        res.status(200).json({message:"Room created successfully"});
+    {  console.log("Room created successfully:", room);
+        res.status(200).json({type:"hit_create",message:"Room created successfully"});
     }
     
 }
@@ -91,13 +96,127 @@ catch(e){
 });
 
 
-userrouter.get("/rooms",async (req,res)=>{
-     
+userrouter.post("/rooms",async (req,res)=>{
+     const {query}=req.body;
     const rooms= await client.room.findMany({
+        where:{
+            name:{
+                contains:query,
+                mode:'insensitive'
+            }
+        }
+
          
     });
     res.status(200).json({rooms});
 });
+
+userrouter.get("/requesttojoin",auth,async (req,res)=>{
+    const slug=req.body.slug;
+    if(!slug)
+    {   res.json({message:"Invalid data"});
+        return ;
+    }
+    
+    const userid=(req as any).id;
+    const user=await client.user.findUnique({
+        where:{
+            id:userid
+        }
+    });
+ 
+     const room=await client.room.findUnique({
+        where:{
+            slug:slug},
+            select:{
+                adminId:true
+            }
+        });
+
+    if(user && room)
+    {
+        await client.user.update({
+        where: { id: room.adminId },
+        data: {
+            requests: {
+            push: {
+                name: user.name,
+                email: user.email,
+                avatar: user.avatar,
+                id: user.id,
+                slug: slug,
+                timestamp: Date.now()
+            }
+            }
+        }
+        });
+
+    }
+});
+ 
+
+userrouter.post("/approverequest", auth, async (req, res) => {
+  const { emailToRemove,apporove ,slug} = req.body;
+  const userId = (req as any).id;
+
+  const admin = await client.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!admin) return res.status(404).send("Admin not found");
+
+   
+  const cleaned = admin.requests.filter(
+    (r: any): r is Record<string, any> => r != null
+  );
+
+   
+  const updatedRequests = cleaned.filter(
+    (r: any) => r.email !== emailToRemove
+  );
+
+   
+  await client.user.update({
+    where: { id: userId },
+    data: {
+      requests: {
+        set: updatedRequests as Prisma.InputJsonValue[],
+      },
+    },
+  });
+
+  res.send({ type: "hit_requests", message: "Request removed" });
+
+
+  if(apporove){
+    const user = await client.user.findUnique({
+      where: { email: emailToRemove },
+    });
+    if (!user) return res.status(404).send("User not found");
+    
+    await client.user.update({
+      where: { id: userId },
+      data: {
+        rooms: {
+          connect: { slug: slug },
+        },
+      },
+     });
+   
+     
+      res.send({ success: true, message: "Request approved" });
+  }
+});
+ 
+
+
+  
+
+
+
+
+
+
 
 export {userrouter};
         

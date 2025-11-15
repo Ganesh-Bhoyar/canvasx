@@ -36,7 +36,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect ,useRef} from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -53,9 +53,23 @@ import {
 } from '@heroicons/react/24/outline';
 import { useWebSocket } from '@/components/context/websocketcontext';
 import { useRouter } from 'next/navigation';
+import { div, u } from 'framer-motion/client';
+import { set } from 'zod';
+import use_debouce from '@/components/Hooks/use_debounce';
+import { Button } from '@/components/ui/button';
+
+
 
 
 // TypeScript interfaces for type safety
+interface serachedRooms{
+  id:string,
+  name:string,
+  slug:string,
+  adminId:string,
+  desc?:string,
+  createdat:Date,
+}
 interface Room {
   id: string;
   name: string;
@@ -68,7 +82,7 @@ interface Room {
 }
 
 interface User {
-  id: string;
+  
   name: string;
   avatar?: string;
   email: string;
@@ -76,10 +90,10 @@ interface User {
 
 // Mock data for demonstration
 const mockUser: User = {
-  id: "user-1",
+  
   name: "Alex Chen",
   email: "alex.chen@example.com",
-  avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
+
 };
 
 const mockRooms: Room[] = [
@@ -122,7 +136,13 @@ const mockRooms: Room[] = [
 ];
 
 // Utility function to format relative time
+
+
+
+
+
 const getRelativeTime = (date: Date): string => {
+  
   const now = new Date();
   const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
@@ -136,10 +156,15 @@ const getRelativeTime = (date: Date): string => {
   if (diffInDays < 7) return `${diffInDays}d ago`;
 
   return date.toLocaleDateString();
+
 };
 
 // RoomCard Component
-const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, index,router }) => {  
+const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, index,router }) => { 
+    const date = new Date(room.dateJoined);  // convert string → Date
+     const now = new Date(); 
+ 
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -149,7 +174,7 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
       className="group"
     >
    
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden" onClick={()=>{router.push(`/newdash`)}}>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer relative overflow-hidden" onClick={()=>{router.push(`/room/${room.id}`)}}>
           {/* Owner badge */}
           {room.isOwner && (
             <div className="absolute top-4 right-4">
@@ -185,7 +210,7 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
                 </div>
                 <div className="flex items-center space-x-1">
                   <CalendarIcon className="w-4 h-4" />
-                  <span>Joined {getRelativeTime(room.dateJoined)}</span>
+                  <span>Joined {getRelativeTime(date)}</span>
                 </div>
               </div>
             </div>
@@ -193,7 +218,7 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
             {room.lastActive && (
               <div className="flex items-center space-x-1 text-xs text-gray-400">
                 <ClockIcon className="w-3 h-3" />
-                <span>Active {getRelativeTime(room.lastActive)}</span>
+                <span>Active {getRelativeTime(now)}</span>
               </div>
             )}
 
@@ -209,7 +234,9 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
 };
 
 // Header Component
-const Header: React.FC<{ user: User }> = ({ user }) => {
+const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HTMLInputElement>) => void,filteredroom:serachedRooms[],searchRoom:boolean,setSearchRoom:React.Dispatch<React.SetStateAction<boolean>>,searchvalue:React.RefObject<HTMLInputElement|null>}> = ({ user,SearchroomHandler,filteredroom,searchRoom,setSearchRoom,searchvalue }) => {
+  
+  const joinroomhandler=(slug:string)=>{};
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -218,28 +245,83 @@ const Header: React.FC<{ user: User }> = ({ user }) => {
           <p className="text-gray-500">Manage your collaborative drawing rooms</p>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search rooms..."
-              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+     <div className="flex items-center space-x-4">
+  <div className="flex flex-col relative">
 
-          <div className="flex items-center space-x-3">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <div className="text-sm">
-              <p className="font-medium text-gray-900">{user.name}</p>
-              <p className="text-gray-500">{user.email}</p>
-            </div>
-          </div>
-        </div>
+    {/* Input */}
+    <div className="relative flex items-center">
+      <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+
+      <input
+        ref={searchvalue}
+      //  value={query}
+        onChange={(e) => {
+          SearchroomHandler(e);
+          setSearchRoom(true);
+        }}
+
+        onFocus={() => {
+          if (searchvalue.current && searchvalue.current.value.trim().length > 0) setSearchRoom(true);
+        }}
+        onBlur={() => {
+          setTimeout(() => setSearchRoom(false), 150); // small delay so clicking works
+        }}
+        type="text"
+        placeholder="Search rooms..."
+        className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+
+    {/* Search Dropdown */}
+   
+    {searchRoom && searchvalue.current && searchvalue.current.value.trim().length > 0 && (
+      <div className="absolute top-12 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-64 z-50">
+       
+        {filteredroom.length > 0 ? (
+          <ul className="space-y-1 max-h-60 overflow-y-auto">
+            {filteredroom.map((room) => (
+              <li
+                key={room.id}
+                className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
+              >
+                <div className='flex justify-between'> <span className='text-gray-900'>{room.name}</span>
+                <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                 
+                className="inline-flex items-center px-2 space-x-2 bg-blue-600 text-white   py-0.5 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200 shadow-sm" onClick={()=>{joinroomhandler(room.slug)}}
+              >
+                <PlusIcon className="w-5 h-5" />
+                
+                <span>Join</span>
+              </motion.button>
+                </div>
+                <div className='text-gray-500'>{room.desc}</div>
+                
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-gray-500 text-center">No results found</p>
+        )}
+      </div>
+    )}
+  </div>
+
+  {/* User Info */}
+  <div className="flex items-center space-x-3">
+    <img
+      src={user.avatar}
+      alt={user.name}
+      className="w-8 h-8 rounded-full object-cover"
+    />
+    <div className="text-sm">
+      <p className="font-medium text-gray-900">{user.name}</p>
+      <p className="text-gray-500">{user.email}</p>
+    </div>
+  </div>
+</div>
+
       </div>
     </header>
   );
@@ -297,7 +379,7 @@ const LoadingState: React.FC = () => {
 };
 
 // Empty State Component
-const EmptyState: React.FC = () => {
+const EmptyState: React.FC<{Router:any}> = ({Router}) => {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -312,8 +394,9 @@ const EmptyState: React.FC = () => {
       <p className="text-gray-500 mb-6 max-w-sm mx-auto">
         Start collaborating by creating your first drawing room or joining an existing one.
       </p>
-      <Link href="/create-room">
+      
         <motion.button
+          onClick={() => Router.push("/create_room")}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
@@ -321,7 +404,7 @@ const EmptyState: React.FC = () => {
           <PlusIcon className="w-5 h-5" />
           <span>Create Your First Room</span>
         </motion.button>
-      </Link>
+      
     </motion.div>
   );
 };
@@ -330,21 +413,45 @@ const EmptyState: React.FC = () => {
 const DashboardPage: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user] = useState<User>(mockUser);
-   const ws = useWebSocket()?.socket;
-    const Router = useRouter();
+  const [user,setUser] = useState<User>(mockUser);
+  const [searchroom,setSearchroom]=useState<boolean>(false);
+  const[filteredrooms,setFilteredrooms]=useState<serachedRooms[]>([]);
+  const searchvalue=useRef<HTMLInputElement>(null);
+  const ws = useWebSocket()?.socket;
+  const Router = useRouter();
+  const [query, setQuery] = useState("");
+  const debouncedQuery:Room[]|null=use_debouce(query,500);
+
+const Searchroomhandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+  setQuery(e.target.value);
+};
+
+useEffect(() => {
+  if (!debouncedQuery) {
+    setFilteredrooms([]);
+    return;
+  }
+
+   
+  const serverRooms = debouncedQuery as serachedRooms[];
+  console.log("Server rooms:", serverRooms);
+
+  // Remove rooms that already exist in your local rooms
+  const cleaned = serverRooms;
+  // const cleaned = serverRooms.filter(
+  //   (item) => !rooms.some((room) => room.id === item.id)
+  // );
+
+  setFilteredrooms(cleaned);
+}, [debouncedQuery, rooms]);
+
+
   
 
   // Simulate API call with loading state
   useEffect(() => {
-    const fetchRooms = async () => {
-      setLoading(true);
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setRooms(mockRooms);
-      setLoading(false);
-    };
-    
+     
+    //setFilteredrooms(mockRooms);
   
     
 //     
@@ -374,9 +481,45 @@ const DashboardPage: React.FC = () => {
 }
 
 
-    fetchRooms();
-  }, [ws]);
+     
+    setLoading(true);
+     ws!.onmessage = (e) => {
+    console.log("Message from server:", e.data);
+    try{
+      const msg = JSON.parse(e.data);
+      if(msg.type =="actived_user"){
+        console.log("Receiving active users...");
+        const name=msg.message.name;
+        const email=msg.message.email;
+        const activeRooms=msg.message.activeRooms;
+        mockUser.name=name;
+        mockUser.email=email;
+        setUser({name,email});
+        console.log("Updated user:", mockUser);
+        const joinedRooms:Room[]=activeRooms.map((r:any)=>({
+          id:r.slug,
+          name:r.name,
+          dateJoined:r.creattedat,
+          lastActive:r.creattedat,
+          participantCount:r.toalmembers,
+          isOwner:r.owner,
+          description:r.description,
+          
+          isActive:true
+        }));
+        setRooms(joinedRooms);
+        console.log("Updated rooms:", rooms);
+        setLoading(false);
+      }
+    }catch(error){
+      console.error("Failed to parse incoming message:", e.data, error);
+    }
+  
+      
+  }}, [ws]);
 
+   
+    
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
@@ -385,7 +528,8 @@ const DashboardPage: React.FC = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <Header user={user} />
+        <Header user={user}  
+         searchvalue={searchvalue} SearchroomHandler={Searchroomhandler} filteredroom={filteredrooms} searchRoom={searchroom} setSearchRoom={setSearchroom}/>
 
         {/* Main Dashboard Content */}
         <main className="flex-1 p-6">
@@ -398,10 +542,11 @@ const DashboardPage: React.FC = () => {
               </p>
             </div>
 
-            <Link href="/create-room">
+            <Link href="/create_room" >
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => Router.push("/create_room")}
                 className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-sm"
               >
                 <PlusIcon className="w-5 h-5" />
@@ -415,7 +560,7 @@ const DashboardPage: React.FC = () => {
             {loading ? (
               <LoadingState />
             ) : rooms.length === 0 ? (
-              <EmptyState />
+              <EmptyState Router={Router}/>
             ) : (
               <motion.div
                 initial={{ opacity: 0 }}

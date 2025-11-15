@@ -255,5 +255,21 @@ function draw_rect(ctx: CanvasRenderingContext2D, x: number, y: number, width: n
   }
 }
 
+
+
+
  
- 
+//  model Message {
+//   id Int @id @default(autoincrement())
+//   slugid String
+//   room Room @relation(fields:[slugid], references: [slug])
+//   shape     String
+//   color     String
+//   x         Int
+//   y         Int
+//   width     Int
+//   height    Int
+//   userid String
+//   user User @relation(fields:[userid], references: [id])
+//   time DateTime  @default(now())
+// }
