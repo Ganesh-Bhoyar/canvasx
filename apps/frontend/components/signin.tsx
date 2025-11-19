@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "react-toastify";
 import { CrossIcon } from "lucide-react";
 import { useRouter } from "next/navigation"; // Correct hook import
+import { HTTP_URL } from "@/config";
 
 export const formSchema = z.object({
   email: z.string().email("Invalid email"),
@@ -39,7 +40,8 @@ export function Signin() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const res = await axios({
-        url: "http://localhost:3001/api/v1/signin",
+
+        url: `${HTTP_URL}/signin`,
         method: "POST",
         data: values
       });

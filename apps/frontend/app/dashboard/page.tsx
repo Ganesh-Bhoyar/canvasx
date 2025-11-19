@@ -1,39 +1,3 @@
-// "use client";
-
-// import { Button } from "@/components/ui/button";
-
-// import { useRouter } from "next/navigation";
-// import React, {useEffect} from "react";
-// import { useWebSocket } from "@/components/context/websocketcontext";
-
-// export default function DashboardPage() {
-//   const ws = useWebSocket()?.socket;
-  
-    
-//     const Router = useRouter();
-//     //Routes handles
-//     //1.join room
-//     //2.leave room
-//     //3.create room
-//     useEffect(() => {
-           
-            
-//             if (ws) {
-//                 ws.send(JSON.stringify({
-//                     "type": "active",
-//                     "message": {}
-//                 }));
-//             }
-        
-//     }, []);
-//   return (
-//     <div className="flex flex-col items-center justify-center">
-//       <h1 className="text-3xl font-bold">Dashboard</h1>
-//       <Button onClick={() => Router.push("/room/missionendsem" )}>Misson Endsem</Button>
-//     </div>
-//   );
-// }
-
 "use client";
 
 import React, { useState, useEffect ,useRef} from 'react';
@@ -49,14 +13,19 @@ import {
   Cog6ToothIcon,
   UserCircleIcon,
   MagnifyingGlassIcon,
-  EllipsisVerticalIcon
+  
 } from '@heroicons/react/24/outline';
 import { useWebSocket } from '@/components/context/websocketcontext';
 import { useRouter } from 'next/navigation';
-import { div, u } from 'framer-motion/client';
-import { set } from 'zod';
+
 import use_debouce from '@/components/Hooks/use_debounce';
-import { Button } from '@/components/ui/button';
+
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { User2Icon } from 'lucide-react';
+import Image from 'next/image';
+import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import { HTTP_URL } from '@/config';
 
 
 
@@ -88,6 +57,15 @@ interface User {
   email: string;
 }
 
+interface joinedRooms{
+  slug:string,
+  owner:boolean,
+  name:string,
+  creattedat:Date,
+  toalmembers:number,
+  totalmessages:number,
+  description:string
+}
 // Mock data for demonstration
 const mockUser: User = {
   
@@ -96,44 +74,7 @@ const mockUser: User = {
 
 };
 
-const mockRooms: Room[] = [
-  {
-    id: "missionendsem",
-    name: "Product Design Brainstorm",
-    dateJoined: new Date("2024-10-01"),
-    lastActive: new Date("2024-10-11T10:30:00"),
-    participantCount: 5,
-    isOwner: true,
-    description: "Wireframing and user flow design session"
-  },
-  {
-    id: "room-2", 
-    name: "Team Architecture Review",
-    dateJoined: new Date("2024-09-28"),
-    lastActive: new Date("2024-10-10T15:45:00"),
-    participantCount: 3,
-    isOwner: false,
-    description: "System architecture diagrams and technical discussions"
-  },
-  {
-    id: "room-3",
-    name: "Marketing Campaign Ideas",
-    dateJoined: new Date("2024-09-25"),
-    lastActive: new Date("2024-10-09T09:20:00"),
-    participantCount: 7,
-    isOwner: false,
-    description: "Creative brainstorming for Q4 marketing initiatives"
-  },
-  {
-    id: "room-4",
-    name: "Mobile App Mockups",
-    dateJoined: new Date("2024-09-20"),
-    lastActive: new Date("2024-10-08T14:10:00"),
-    participantCount: 2,
-    isOwner: true,
-    description: "iOS and Android app interface designs"
-  }
-];
+
 
 // Utility function to format relative time
 
@@ -160,7 +101,7 @@ const getRelativeTime = (date: Date): string => {
 };
 
 // RoomCard Component
-const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, index,router }) => { 
+const RoomCard: React.FC<{ room: Room; index: number,router:AppRouterInstance  }> = ({ room, index,router }) => { 
     const date = new Date(room.dateJoined);  // convert string → Date
      const now = new Date(); 
  
@@ -235,8 +176,32 @@ const RoomCard: React.FC<{ room: Room; index: number,router:any }> = ({ room, in
 
 // Header Component
 const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HTMLInputElement>) => void,filteredroom:serachedRooms[],searchRoom:boolean,setSearchRoom:React.Dispatch<React.SetStateAction<boolean>>,searchvalue:React.RefObject<HTMLInputElement|null>}> = ({ user,SearchroomHandler,filteredroom,searchRoom,setSearchRoom,searchvalue }) => {
-  
-  const joinroomhandler=(slug:string)=>{};
+  const [auth,setAuth]=useState<string>("");
+  useEffect(()=>{
+    const token=localStorage.getItem("authorization");
+    if(token)
+    {
+      setAuth(token);
+    }
+  },[]);
+  const joinroomhandler=async (slug:string)=>{
+    console.log("Joining room with slug:",slug,auth);
+    const res=await axios({
+      method:"post",
+      url:`${HTTP_URL}/requesttojoin`,
+      data:{
+        slug:slug
+      },
+      headers:{
+        "authorization":auth
+      }
+    })
+    console.log("Response from server:",res.data);
+    
+    filteredroom=filteredroom.filter((room)=>room.slug!==slug);
+      toast.success(res.data.message);
+    
+  };
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -286,6 +251,7 @@ const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HT
               >
                 <div className='flex justify-between'> <span className='text-gray-900'>{room.name}</span>
                 <motion.button
+                
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                  
@@ -293,7 +259,7 @@ const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HT
               >
                 <PlusIcon className="w-5 h-5" />
                 
-                <span>Join</span>
+                <span onClick={()=>{joinroomhandler(room.slug)}}>Join</span>
               </motion.button>
                 </div>
                 <div className='text-gray-500'>{room.desc}</div>
@@ -310,11 +276,14 @@ const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HT
 
   {/* User Info */}
   <div className="flex items-center space-x-3">
-    <img
+    {user.avatar ? (
+    <Image
       src={user.avatar}
       alt={user.name}
       className="w-8 h-8 rounded-full object-cover"
-    />
+    />):(
+      <User2Icon className="w-8 h-8 text-slate-800" />
+    )}
     <div className="text-sm">
       <p className="font-medium text-gray-900">{user.name}</p>
       <p className="text-gray-500">{user.email}</p>
@@ -328,7 +297,7 @@ const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HT
 };
 
 // Sidebar Component
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<{Router:AppRouterInstance }> = ({Router}) => {
   return (
     <aside className="w-64 bg-gray-50 border-r border-gray-200 h-full">
       <div className="p-6">
@@ -345,10 +314,10 @@ const Sidebar: React.FC = () => {
             <span>Dashboard</span>
           </Link>
 
-          <Link href="/profile" className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+          <div onClick={()=>{Router.push("/profile")}} className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
             <UserCircleIcon className="w-5 h-5" />
             <span>Profile</span>
-          </Link>
+          </div>
 
           <Link href="/settings" className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
             <Cog6ToothIcon className="w-5 h-5" />
@@ -379,7 +348,7 @@ const LoadingState: React.FC = () => {
 };
 
 // Empty State Component
-const EmptyState: React.FC<{Router:any}> = ({Router}) => {
+const EmptyState: React.FC<{Router:AppRouterInstance }> = ({Router}) => {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -437,10 +406,10 @@ useEffect(() => {
   console.log("Server rooms:", serverRooms);
 
   // Remove rooms that already exist in your local rooms
-  const cleaned = serverRooms;
-  // const cleaned = serverRooms.filter(
-  //   (item) => !rooms.some((room) => room.id === item.id)
-  // );
+  //const cleaned = serverRooms;
+  const cleaned = serverRooms.filter(
+    (item) => !rooms.some((room) => room.id === item.slug)
+  );
 
   setFilteredrooms(cleaned);
 }, [debouncedQuery, rooms]);
@@ -460,7 +429,7 @@ useEffect(() => {
 //     //2.leave room
 //     //3.create room
 //     
-           
+    if(!ws){return ;}    
     console.log("ws in dash:",ws);
      if (ws) {
   if (ws.readyState === WebSocket.CONNECTING) {
@@ -496,7 +465,7 @@ useEffect(() => {
         mockUser.email=email;
         setUser({name,email});
         console.log("Updated user:", mockUser);
-        const joinedRooms:Room[]=activeRooms.map((r:any)=>({
+        const joinedRooms:Room[]=activeRooms.map((r:joinedRooms)=>({
           id:r.slug,
           name:r.name,
           dateJoined:r.creattedat,
@@ -523,7 +492,7 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar Router={Router}/>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">

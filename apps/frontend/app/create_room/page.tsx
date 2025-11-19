@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { HTTP_URL } from '@/config';
 
 export default function CreateRoomPage() {
   const [roomName, setRoomName] = useState('');
@@ -41,7 +42,7 @@ export default function CreateRoomPage() {
     console.log('Creating room with values:', values);
     console.log('Using token:', token);
      const res = await axios({
-        url: "http://localhost:3001/api/v1/createroom",
+        url: `${HTTP_URL}/createroom`,
         method: "POST",
         data: values,
         headers: {

@@ -48,7 +48,7 @@ model Message {
   id Int @id @default(autoincrement())
   slugid String @unique
   room Room @relation(fields:[slugid], references: [slug])
-  canvasJson String
+  canvasJson Json
   updatedAt DateTime @default(now())
    userid String
    user User @relation(fields:[userid], references: [id])

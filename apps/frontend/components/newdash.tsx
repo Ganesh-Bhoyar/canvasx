@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import * as fabric from "fabric";
 
-import { useRouter } from 'next/navigation'; 
+import { useRouter,usePathname  } from 'next/navigation'; 
 import { useWebSocket } from "./context/websocketcontext";
 
 // TypeScript interfaces
@@ -88,6 +88,9 @@ const CanvasXBoard = ({ slug }: { slug: string }) => {
   const [showGridLines, setShowGridLines] = useState<boolean>(false);
   const [clipboard, setClipboard] = useState<fabric.Object | null>(null);
   const [isCopyMode, setIsCopyMode] = useState<boolean>(false);
+
+  const pathname = usePathname();
+  const prevPathname = useRef(pathname);
 
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -532,10 +535,36 @@ async function Paste() {
         setShowFillPalette(false);
       }
     };
+     const persistCanvas = () => {
+      if (canvas && ws) {
+        console.log("Persisting canvas to server...");
+        ws.send(
+          JSON.stringify({ type: "update_database", message: { slug, data: canvas.toJSON() } })
+        );
+        console.log("Sent final canvas state to server");
+      }
+    };
+    if (prevPathname.current !== pathname) {
+      console.log("Pathname changed, persisting canvas...");
+      persistCanvas();
+      prevPathname.current = pathname;
+    }
+
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      console.log("Window unloading, persisting canvas...");
+      persistCanvas();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    console.log("sending request for previous messages");
     ws?.send(JSON.stringify({ type: "prev_messages", message: { slug} }));
     document.addEventListener('mousedown', handleClickOutside);
     return () =>{ document.removeEventListener('mousedown', handleClickOutside);
-           ws?.send(JSON.stringify({ type: "update_database", message: { slug, data: canvas?.toJSON() } }));
+           if(canvas)
+          { 
+            ws?.send(JSON.stringify({ type: "update_database", message: { slug, data: canvas?.toJSON() } }));
+            console.log("Sent final canvas state to server");
+          }
     };
   }, [ws]);
 
@@ -605,7 +634,10 @@ img.onload = () => {
 
     // WebSocket broadcast functions
     const broadcast = () => {
+      console.log("Broadcasting update...");
+      console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
       if (isRemoteUpdate.current) return; // skip remote updates
+      console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
 
       console.log("Broadcasting local update...");
       ws?.send(JSON.stringify({ 
@@ -619,7 +651,7 @@ img.onload = () => {
     fabricCanvas.on("object:added", broadcast);
     fabricCanvas.on("object:modified", broadcast);
     fabricCanvas.on("object:removed", broadcast);
-    fabricCanvas.on("object:moving", broadcast);
+    fabricCanvas.on("object:moving", throttleBroadcast);
     fabricCanvas.on("object:scaling", throttleBroadcast);
     fabricCanvas.on("object:rotating", throttleBroadcast);
 
@@ -629,9 +661,10 @@ img.onload = () => {
         console.log("Received message:", e.data);
         try {
           const msg = JSON.parse(e.data);
-          if (msg.type === "update") {
+          if (msg.type === "update" && msg.message) {
             console.log("Receiving remote update...");
             isRemoteUpdate.current = true;
+            
             console.log(msg.message);
             fabricCanvas.loadFromJSON(msg.message, () => {
               fabricCanvas.renderAll();
@@ -642,6 +675,7 @@ img.onload = () => {
                 isRemoteUpdate.current = false;
                 console.log("Remote update complete; re-enabling broadcast");
               }, 200);
+              console.log(" i am after settimeout")
             });
           }
         } catch (error) {

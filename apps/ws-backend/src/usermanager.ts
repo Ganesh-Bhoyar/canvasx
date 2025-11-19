@@ -18,6 +18,55 @@ class UserManager{
     {
         this.users=[];
     }
+   private updateIntervals = new Map<string, NodeJS.Timeout>();
+  private inactivityTimeouts = new Map<string, NodeJS.Timeout>();
+  private lastUpdateTimestamps = new Map<string, number>();
+
+
+
+  startPeriodicDatabaseUpdate(id: string, socket: WebSocket, data: any, slug: string) {
+    if (this.updateIntervals.has(slug)) return; // Already running for this slug
+
+    const updateIntervalId = setInterval(() => {
+      console.log("update sent to all users in", slug);
+      this.updatedatabase(id, socket, data, slug);
+    }, 1000);
+
+    this.updateIntervals.set(slug, updateIntervalId);
+    this.startInactivityChecker(slug);
+  }
+
+  startInactivityChecker(slug: string) {
+    if (this.inactivityTimeouts.has(slug)) return;
+
+    const inactivityTimeoutId = setInterval(() => {
+      const now = Date.now();
+      const lastUpdate = this.lastUpdateTimestamps.get(slug) || 0;
+      if (now - lastUpdate > 20000) { // 20 seconds inactivity
+        console.log(`No updatecanvas call for 20 seconds in room ${slug}, stopping interval`);
+        this.stopPeriodicDatabaseUpdate(slug);
+        this.stopInactivityChecker(slug);
+      }
+    }, 5000);
+
+    this.inactivityTimeouts.set(slug, inactivityTimeoutId);
+  }
+
+  stopPeriodicDatabaseUpdate(slug: string) {
+    const intervalId = this.updateIntervals.get(slug);
+    if (intervalId) {
+      clearInterval(intervalId);
+      this.updateIntervals.delete(slug);
+    }
+  }
+
+  stopInactivityChecker(slug: string) {
+    const timeoutId = this.inactivityTimeouts.get(slug);
+    if (timeoutId) {
+      clearInterval(timeoutId);
+      this.inactivityTimeouts.delete(slug);
+    }
+  }
 
    //join the room
    joinroom=async (id:string,slug:string,socket:WebSocket)=>{
@@ -127,10 +176,10 @@ class UserManager{
         socket.send(JSON.stringify({type:"actived_user",message:{name:userRooms.name,email:userRooms.email,activeRooms:sendjoinedRooms}} ) );
         
     }
-        updatecanvas=async(id:string,socket:WebSocket,data:any,slug:string)=>{
+    updatecanvas=async(id:string,socket:WebSocket,data:any,slug:string)=>{
        console.log("updatecanvas called");
        const user=this.users?.find(user=>user.id===id);
-        console.log(this.users);
+        //console.log(this.users);
         if(!user?.joinedRooms.includes(slug))
         {
             socket.send(JSON.stringify({type:"error",message:"you are not joined this room"}));
@@ -147,6 +196,8 @@ class UserManager{
                 console.log(`message sent to ${user.id}`);
             }
         });
+
+        this.startPeriodicDatabaseUpdate(id, socket, data, slug);
         
           
         // if(status=="end")
@@ -172,7 +223,7 @@ class UserManager{
  }
 
    updatedatabase=async(id:string,socket:WebSocket,data:any,slug:string)=>{
-    console.log("updatecanvas called");
+    console.log("update_database called");
        const user=this.users?.find(user=>user.id===id);
         console.log(this.users);
         if(!user?.joinedRooms.includes(slug))
@@ -181,35 +232,47 @@ class UserManager{
             return ;
         }
 
-        const message=await client.message.update({
+        const message=await client.message.upsert({
             where:{
                 slugid:slug
             },
-            data:{
+            update:{
                 canvasJson:data
+            },
+            create:{  
+                canvasJson:data,
+                slugid:slug,
+                userid:id,
             }
         });
         console.log(message);
         if(message)
-        {
-            socket.send(JSON.stringify({type:"update_database",message:message}));
+        {  console.log("database updated successfully");
+            socket.send(JSON.stringify({type:"daatabase updated successfully",message:`to ${slug} group`  }));
         }
 
 
         
    }
     prevmessage=async(id:string,socket:WebSocket,slug:string)=>{
+        console.log("prev message called");
           const rooms= await client.user.findUnique({
             where:{id},
-            select:{rooms:{select:{slug:true}}}
+            select:{rooms:{select:{slug:true}},
+                 adminRooms:{select:{slug:true}}}
         });
         console.log(rooms);
-        console.log(rooms?.rooms);
+       const roomsarray = [
+        ...(rooms?.rooms ?? []),
+        ...(rooms?.adminRooms ?? [])
+        ];
+        console.log(roomsarray);
+        
         console.log(slug)
 
 
 
-       if (rooms?.rooms.some((room:any)=>room.slug===slug))
+       if ( roomsarray?.some((room:any)=>room.slug===slug))
         {
             const chat=await client.message.findUnique({
                 where:{
@@ -218,8 +281,12 @@ class UserManager{
                 }
             });
             if(chat)
+            {   console.log("sending prev message to ",slug,"message:",chat.canvasJson);
+                socket.send(JSON.stringify({type:"update",message:chat.canvasJson}));
+            }
+            else
             {
-                socket.send(JSON.stringify({type:"update_database",message:chat}));
+                socket.send(JSON.stringify({type:"update",message:null}));
             }
              
         }
@@ -232,6 +299,7 @@ class UserManager{
 
     disconnect=(id:string)=>{
         this.users=this.users?.filter(user=>user.id!==id) || [];
+            
     }
 
     sendmessage=async(id:string,shape:string,color:string,height:number,width:number,x:number,y:number,socket:WebSocket,slug:string,status:string)=>{

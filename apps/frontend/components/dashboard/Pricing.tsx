@@ -3,6 +3,7 @@
 
 import { motion } from 'framer-motion'
 import { Check, Star, Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 const plans = [
   {
@@ -61,6 +62,7 @@ const plans = [
 ]
 
 const Pricing = () => {
+  const Router = useRouter();
   return (
     <section className="relative py-24 bg-white/50 backdrop-blur-sm">
       {/* Background effects */}
@@ -172,6 +174,7 @@ const Pricing = () => {
 
                 {/* CTA Button */}
                 <motion.button
+                  onClick={()=>{Router.push('/signup')}}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${

@@ -94,7 +94,7 @@ wss.on('connection',(ws,request)=>{
         else if(message.type==="update_database")
         {
             const {slug,data}=message.message;
-            userManager.updatecanvas(userid,ws,data,slug);
+            userManager.updatedatabase(userid,ws,data,slug);
         }
         else if(message.type==="disconnect")
         {

@@ -6,6 +6,7 @@ import { z} from "zod";
  import { Button } from "@/components/ui/button"
  import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useRouter } from "next/navigation";
 import {
   Form,
   FormControl,
@@ -16,7 +17,8 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { CrossIcon } from "lucide-react";
+import { CrossIcon, Router } from "lucide-react";
+import { HTTP_URL } from "@/config";
  
  
 
@@ -29,6 +31,46 @@ export const formSchema=z.object({
 })
 
 export function Signup() {
+   const router = useRouter();
+
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+    
+    
+    try {
+      const res = await axios({
+        
+        url: `${HTTP_URL}/signup`,
+        method: "POST",
+        data: values
+      });
+     toast("Account created successfully", {
+  position: "top-center",
+  autoClose: 2500,
+  style: { color: '#1F2937' }
+  });
+
+    setTimeout(() => {
+      router.push("/signin");
+    }, 2500);
+  } catch (err) {
+    let errormessage="";
+     
+    if (axios.isAxiosError(err) && err.response) {
+      if (err.response.status === 409) {
+        errormessage = (err as any).data.error;
+      } else if (err.response.data && err.response.data.error) {
+        errormessage = "Error: " + err.response.data.error;
+      } else {
+        errormessage = "Signup failed (server error)";
+      }
+    } else {
+      errormessage = "Signup failed (network or unknown error)";
+    }
+
+    toast.error(errormessage);
+  }
+  }
+ 
    
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -117,40 +159,4 @@ export function Signup() {
 }
 
   
-   async function onSubmit(values: z.infer<typeof formSchema>) {
-    
-    try {
-      const res = await axios({
-        url: "http://localhost:3001/api/v1/signup",
-        method: "POST",
-        data: values
-      });
-     toast ("Account created successfully", {
-      position: "top-center",
-      autoClose:2500,
-      style: {  color: '#1F2937'}
-    }
-  );
-
-    setTimeout(() => {
-      window.location.href = "/signin";
-    }, 2500);
-  } catch (err) {
-    let errormessage="";
-     
-    if (axios.isAxiosError(err) && err.response) {
-      if (err.response.status === 409) {
-        errormessage = (err as any).data.error;
-      } else if (err.response.data && err.response.data.error) {
-        errormessage = "Error: " + err.response.data.error;
-      } else {
-        errormessage = "Signup failed (server error)";
-      }
-    } else {
-      errormessage = "Signup failed (network or unknown error)";
-    }
-
-    toast.error(errormessage);
-  }
-  }
  

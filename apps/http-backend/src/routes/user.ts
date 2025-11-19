@@ -89,6 +89,7 @@ try    {
         res.status(200).json({type:"hit_create",message:"Room created successfully"});
     }
     
+    
 }
 catch(e){
     res.status(500).json({message:"Error creating room"});
@@ -111,7 +112,7 @@ userrouter.post("/rooms",async (req,res)=>{
     res.status(200).json({rooms});
 });
 
-userrouter.get("/requesttojoin",auth,async (req,res)=>{
+userrouter.post("/requesttojoin",auth,async (req,res)=>{
     const slug=req.body.slug;
     if(!slug)
     {   res.json({message:"Invalid data"});
@@ -129,9 +130,25 @@ userrouter.get("/requesttojoin",auth,async (req,res)=>{
         where:{
             slug:slug},
             select:{
-                adminId:true
+                adminId:true,
+                name:true,
             }
         });
+    if(!room) return ;
+    const request=await client.user.findUnique({
+        where:{
+            id:room.adminId
+        },
+        select:{
+            requests:true
+        }
+    });
+   console.log("Existing requests:", request?.requests);
+    if(request?.requests.some((r:any)=>r.slug===slug && r.id===userid))
+    {
+        res.status(200).json({success:true,message:"Request already sent"});
+        return ;
+    }
 
     if(user && room)
     {
@@ -145,16 +162,42 @@ userrouter.get("/requesttojoin",auth,async (req,res)=>{
                 avatar: user.avatar,
                 id: user.id,
                 slug: slug,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                roomName:room.name
             }
             }
         }
         });
+        res.status(200).json({success:true,message:"Request sent successfully"});
 
     }
 });
  
 
+userrouter.get("/profiledetaiis",auth,async (req,res)=>{
+    const userid=(req as any).id;
+    const user=await client.user.findUnique({
+        where:{
+            id:userid
+        }
+        ,select:{
+        rooms:true,
+        adminRooms:true,
+        name:true,
+        email:true,
+        avatar:true,
+        requests:true
+        }
+    });
+    if(user)
+    {
+        res.status(200).json({user});
+    }
+    else
+    {
+        res.status(404).json({message:"User not found"});
+    }
+});
 userrouter.post("/approverequest", auth, async (req, res) => {
   const { emailToRemove,apporove ,slug} = req.body;
   const userId = (req as any).id;
@@ -195,7 +238,7 @@ userrouter.post("/approverequest", auth, async (req, res) => {
     if (!user) return res.status(404).send("User not found");
     
     await client.user.update({
-      where: { id: userId },
+      where: { email: emailToRemove },
       data: {
         rooms: {
           connect: { slug: slug },

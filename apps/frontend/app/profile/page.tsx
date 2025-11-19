@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   UserGroupIcon, 
   ShieldCheckIcon, 
@@ -8,47 +9,125 @@ import {
   CheckCircleIcon,
   XCircleIcon
 } from '@heroicons/react/24/outline';
+import { 
+  
+  PaintBrushIcon,
+  Squares2X2Icon,
+  Cog6ToothIcon,
+  UserCircleIcon,
+   
+} from '@heroicons/react/24/outline';
+import axios from 'axios';
+ 
+import {  User2Icon } from 'lucide-react';
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { HTTP_URL } from '@/config';
+
 
 // Mock data
-const mockUser = {
-  name: "Alex Chen",
-  email: "alex.chen@example.com",
-  avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex",
-};
+ 
+ 
 
-const mockStats = {
-  groupsJoined: 12,
-  roomsAsAdmin: 5,
-  pendingRequests: 3
+
+const getRelativeTime = (date: Date): string => {
+  
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+  if (diffInMinutes < 1) return 'Just now';
+  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}h ago`;
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) return `${diffInDays}d ago`;
+
+  return date.toLocaleDateString();
+
 };
 
 const mockRequests = [
   {
-    id: 1,
-    userName: "Sarah Johnson",
-    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
-    roomName: "Product Design Brainstorm",
-    requestDate: "2 hours ago"
-  },
-  {
-    id: 2,
-    userName: "Michael Zhang",
-    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
-    roomName: "Marketing Campaign Ideas",
-    requestDate: "5 hours ago"
-  },
-  {
-    id: 3,
-    userName: "Emma Wilson",
-    userAvatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
-    roomName: "Mobile App Mockups",
-    requestDate: "1 day ago"
-  }
+                name: "vishal",
+                email:"vishal@gmail.com",
+                avatar:"https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+                id:1,
+                slug: " creative-hub",
+                timestamp: Date.now(),
+                roomName: "Creative Hub"
+  } 
 ];
+
+const Sidebar: React.FC<{Router:AppRouterInstance}> = ({Router}) => {
+  return (
+    <aside className="w-64 bg-gray-50 border-r border-gray-200 h-full">
+      <div className="p-6">
+        <div className="flex items-center space-x-3 mb-8">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <PaintBrushIcon className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-gray-900">CanvasX</span>
+        </div>
+
+        <nav className="space-y-2">
+          <div  onClick={()=>{Router.push("/")}} className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg font-medium">
+            <Squares2X2Icon className="w-5 h-5" />
+            <span>Dashboard</span>
+          </div>
+
+          <div onClick={()=>{Router.push("/profile")}} className="flex items-center space-x-3 px-3 py-2 text-blue-600 bg-blue-50 rounded-lg transition-colors duration-200">
+            <UserCircleIcon className="w-5 h-5" />
+            <span>Profile</span>
+          </div>
+
+          <div className="flex items-center space-x-3 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+            <Cog6ToothIcon className="w-5 h-5" />
+            <span>Settings</span>
+          </div>
+        </nav>
+      </div>
+    </aside>
+  );
+};
+
+interface Usertype{
+  name:string,
+  email:string,
+  avatar:string,
+  requests:any[],
+  adminRooms:any[],
+  rooms:any[]
+}
+
 
 export default function ProfilePage() {
   const [requests, setRequests] = useState(mockRequests);
+  const Router = useRouter();
+  const [user,setUser]=useState<Usertype>({} as Usertype);
+  const [token,setToken]=useState<string|null>(null);
 
+const reqhandler=async(email:string,approve:boolean,slug:string)=>{
+  const res=await axios({
+    method:"post",
+    url:`${HTTP_URL}/approverequest`,
+    data:{
+      emailToRemove:email,
+      apporove:approve,
+      slug:slug
+    },
+    headers:{
+      "authorization":token
+    }
+  })
+  console.log("Response from server:",res.data);
+ 
+  
+    setRequests(requests.filter((req)=>req.email!==email));
+  
+  
+};
+   
   const handleApprove = (id: number) => {
     setRequests(requests.filter(req => req.id !== id));
   };
@@ -57,8 +136,48 @@ export default function ProfilePage() {
     setRequests(requests.filter(req => req.id !== id));
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6">
+  useEffect(() => {
+    
+    const fetchUserData=async()=>{
+    const token=localStorage.getItem("authorization");
+    setToken(token);
+    const user=await axios({
+      url:`${HTTP_URL}/profiledetaiis`,
+      method:"get",
+      headers:{
+        authorization:token
+      }
+    })
+
+    const userdata=user.data.user;
+    if(userdata)
+    {
+      const u={
+        name:userdata.name,
+        email:userdata.email,
+        avatar:userdata.avatar,
+        requests:userdata.requests,
+        adminRooms:userdata.adminRooms,
+        rooms:userdata.rooms
+      }
+      console.log("User data:",u);
+      setUser(u);
+      setRequests(userdata.requests as any[]);
+      }
+    }
+
+  
+    fetchUserData();
+
+
+
+}, []);
+  return (<div className="flex  ">
+    <div className="min-h-screen bg-gray-50 flex">
+      <Sidebar Router={Router}/>
+    </div>
+    <div className=" flex-grow-2 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 p-6  ">
+    
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* User Header Section */}
@@ -66,17 +185,22 @@ export default function ProfilePage() {
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-500"></div>
-              <img
-                src={mockUser.avatar}
-                alt={mockUser.name}
-                className="relative w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl"
-              />
+              {user.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt="avatar"
+                        className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors duration-300"
+                      />
+                    ) : (
+                      <User2Icon className="relative w-32 h-32 rounded-full text-blue-600 object-cover border-4 border-white shadow-xl" />
+                    )}
+
             </div>
             <div className="text-center md:text-left flex-1">
               <h1 className="text-4xl font-bold text-gray-900 mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {mockUser.name}
+                {user.name}
               </h1>
-              <p className="text-gray-600 text-lg">{mockUser.email}</p>
+              <p className="text-gray-600 text-lg">{user.email}</p>
               <div className="mt-4 flex flex-wrap gap-2 justify-center md:justify-start">
                 <span className="px-4 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   Active Member
@@ -99,7 +223,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">{mockStats.groupsJoined}</p>
+              <p className="text-3xl font-bold text-gray-900 mb-1">{(user.rooms?.length || 0) + (user.adminRooms?.length || 0)}</p>
               <p className="text-gray-600 font-medium">Groups Joined</p>
             </div>
           </div>
@@ -112,7 +236,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">{mockStats.roomsAsAdmin}</p>
+              <p className="text-3xl font-bold text-gray-900 mb-1">{user.adminRooms?.length || 0}</p>
               <p className="text-gray-600 font-medium">Rooms as Admin</p>
             </div>
           </div>
@@ -125,7 +249,7 @@ export default function ProfilePage() {
               </div>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">{mockStats.pendingRequests}</p>
+              <p className="text-3xl font-bold text-gray-900 mb-1">{user.requests?.length || 0}</p>
               <p className="text-gray-600 font-medium">Pending Requests</p>
             </div>
           </div>
@@ -153,37 +277,48 @@ export default function ProfilePage() {
             <div className="space-y-4">
               {requests.map((request) => (
                 <div
-                  key={request.id}
+                  key={`${request.email}-${request.slug}`}
                   className="group bg-gradient-to-r from-white to-gray-50 rounded-xl p-5 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-300"
                 >
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1">
+                     {request.avatar ? (
                       <img
-                        src={request.userAvatar}
-                        alt={request.userName}
+                        src={request.avatar}
+                        alt="avatar"
                         className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors duration-300"
                       />
+                    ) : (
+                      <User2Icon className="w-14 h-14 text-neutral-600" />
+                    )}
+
+
+                      {/* <img
+                        src={request.avatar||<User2Icon}
+                        alt={request.name}
+                        className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors duration-300"
+                      /> */}
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900 text-lg mb-1">
-                          {request.userName}
+                          {request.name}
                         </h3>
                         <p className="text-gray-600 text-sm mb-1">
                           Wants to join: <span className="font-medium text-gray-900">{request.roomName}</span>
                         </p>
-                        <p className="text-gray-400 text-xs">{request.requestDate}</p>
+                        <p className="text-gray-400 text-xs">{getRelativeTime(new Date(request.timestamp))}</p>
                       </div>
                     </div>
 
                     <div className="flex gap-3 w-full sm:w-auto">
                       <button
-                        onClick={() => handleApprove(request.id)}
+                        onClick={() => reqhandler(request.email,true,request.slug)}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-green-700 hover:shadow-lg hover:scale-105 transition-all duration-200"
                       >
                         <CheckCircleIcon className="w-5 h-5" />
                         <span>Approve</span>
                       </button>
                       <button
-                        onClick={() => handleReject(request.id)}
+                        onClick={() => reqhandler(request.email,false,request.slug)}
                         className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-red-700 hover:shadow-lg hover:scale-105 transition-all duration-200"
                       >
                         <XCircleIcon className="w-5 h-5" />
@@ -197,6 +332,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
