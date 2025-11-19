@@ -4,12 +4,14 @@ import { JWT_SECRET } from 'backend-config/config';
 import client from 'db/client';
 import {ws_message} from './types';
 import UserManager from './usermanager';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
  interface JWT_PAYLOAD{
     id:string;
  }
-const wss =new WebSocketServer({ port: 8080 });
+const wss =new WebSocketServer({ port: (process.env.PORT! as unknown as number) || 8080 });
  const userManager=new UserManager();
 
 const verifyauth=(token:string):string=>{

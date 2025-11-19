@@ -3,6 +3,8 @@ import client from "db/client";
 import { userrouter } from './routes/user';
 import 'dotenv/config';
 import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 
@@ -16,6 +18,6 @@ app.use("/api/v1",userrouter);
      res.status(200).json({message:"HTTP Backend is running"});
      
  });
-app.listen(3001,()=>{
-    console.log("HTTP Backend listening on port 3001");
+app.listen(process.env.PORT! || 3001,()=>{
+    console.log(`http Server is listening on port ${process.env.PORT || 3001}`);
 }   );
