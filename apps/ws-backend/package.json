@@ -13,6 +13,7 @@
     "backend-config": "workspace:*",
     "common": "workspace:*",
     "db": "workspace:*",
+    "jsonwebtoken": "^9.0.2",
     "slugify": "^1.6.6",
     "ws": "^8.18.3"
   },
