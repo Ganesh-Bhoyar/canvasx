@@ -132,6 +132,9 @@ importers:
       common:
         specifier: workspace:*
         version: link:../../packages/common
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       db:
         specifier: workspace:*
         version: link:../../packages/db
@@ -186,9 +189,15 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       ws:
         specifier: ^8.18.3
         version: 8.18.3
+      zod:
+        specifier: ^4.1.11
+        version: 4.1.11
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*

@@ -2,10 +2,7 @@
   "name": "common",
   "version": "1.0.0",
   "main": "index.ts",
-  "scripts": {
-    
-
-  },
+  "scripts": {},
   "devDependencies": {
     "@repo/typescript-config": "workspace:*"
   },
@@ -18,6 +15,8 @@
   "description": "",
   "dependencies": {
     "@types/ws": "^8.18.1",
-    "ws": "^8.18.3"
+    "cors": "^2.8.5",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
   }
 }
