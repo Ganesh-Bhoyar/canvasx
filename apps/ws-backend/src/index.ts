@@ -5,13 +5,19 @@ import client from 'db/client';
 import {ws_message} from './types';
 import UserManager from './usermanager';
 import dotenv from 'dotenv';
+import http from "http";
+ 
 dotenv.config();
 
 
  interface JWT_PAYLOAD{
     id:string;
  }
-const wss =new WebSocketServer({ port: (process.env.PORT! as unknown as number) || 8080 });
+
+
+const server = http.createServer();
+
+const wss = new WebSocketServer({ server });
  const userManager=new UserManager();
 
 const verifyauth=(token:string):string=>{
@@ -105,3 +111,6 @@ wss.on('connection',(ws,request)=>{
         }
     });
 });
+  server.listen(process.env.PORT! || 8080, () => {
+    console.log(`Server is listening on port ${process.env.PORT}`);
+  });
