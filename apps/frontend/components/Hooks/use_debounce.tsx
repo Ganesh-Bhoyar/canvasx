@@ -1,4 +1,6 @@
+import { HTTP_URL } from "@/config";
 import axios from "axios";
+
  
 import React from "react";
 
@@ -10,7 +12,7 @@ const use_debouce=(value:any,delay:number)=>{
       const handler = setTimeout(async () => {
         const responce=await axios({
             method:"POST",
-            url:"http://localhost:3001/api/v1/rooms",
+            url:`${HTTP_URL}/rooms`,
             data:{query:value}
         });
         setResponse(responce.data.rooms)

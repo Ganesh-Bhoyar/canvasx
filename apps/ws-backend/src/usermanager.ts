@@ -158,10 +158,11 @@ class UserManager{
         if (!userRooms) return [];
 
         
-        const joinedRooms = [  
+        const joinedRooms = [ 
             ...userRooms.rooms.map(r => r.slug),
             ...userRooms.adminRooms.map(r => r.slug),
         ];
+        
         const sendjoinedRooms:{slug:string,owner:boolean,name:string,creattedat:Date,toalmembers:number,totalmessages:number,description:string}[]=[
             ...userRooms.rooms.map(r => {   return {name:r.name,owner:false,slug:r.slug,creattedat:r.createdAt,toalmembers:r.members.length+1,totalmessages:r.messages.length,description:r.desc}}),
             ...userRooms.adminRooms.map(r => {   return {name:r.name,owner:true,slug:r.slug,creattedat:r.createdAt,toalmembers:r.members.length+1,totalmessages:r.messages.length,description:r.desc}}),
@@ -179,7 +180,7 @@ class UserManager{
     updatecanvas=async(id:string,socket:WebSocket,data:any,slug:string)=>{
        console.log("updatecanvas called");
        const user=this.users?.find(user=>user.id===id);
-        //console.log(this.users);
+        console.log(this.users);
         if(!user?.joinedRooms.includes(slug))
         {
             socket.send(JSON.stringify({type:"error",message:"you are not joined this room"}));

@@ -49,7 +49,9 @@ export default function CreateRoomPage() {
           authorization:token,
         },
       });
-     if(res){toast ("Room created successfully", {
+     if(res)
+      {
+      toast ("Room created successfully", {
       position: "top-center",
       autoClose:2500,
       style: {  color: '#1F2937'}
