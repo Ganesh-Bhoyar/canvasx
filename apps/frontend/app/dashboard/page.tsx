@@ -259,7 +259,7 @@ const Header: React.FC<{ user: User, SearchroomHandler: (e: React.ChangeEvent<HT
               >
                 <PlusIcon className="w-5 h-5" />
                 
-                <span onClick={()=>{joinroomhandler(room.slug)}}>Join</span>
+                <span  >Join</span>
               </motion.button>
                 </div>
                 <div className='text-gray-500'>{room.desc}</div>
