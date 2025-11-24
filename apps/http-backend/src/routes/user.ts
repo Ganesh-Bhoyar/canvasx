@@ -228,7 +228,7 @@ userrouter.post("/approverequest", auth, async (req, res) => {
     },
   });
 
-  res.send({ type: "hit_requests", message: "Request removed" });
+  //res.send({ type: "hit_requests", message: "Request removed" });
 
 
   if(apporove){
@@ -249,6 +249,8 @@ userrouter.post("/approverequest", auth, async (req, res) => {
      
       res.send({ success: true, message: "Request approved" });
   }
+  else
+    {res.send({ type: "hit_requests", message: "Request not approved" });}
 });
  
 

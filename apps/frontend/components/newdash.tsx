@@ -262,7 +262,7 @@ async function Paste() {
     const currentFillColor = fillColorRef.current;
     const currentStrokeWidth = strokeWidthRef.current;
 
-    console.log("Mouse down - Current tool:", currentTool);
+    //console.log("Mouse down - Current tool:", currentTool);
 
     // Handle different tools
     switch (currentTool) {
@@ -343,9 +343,9 @@ async function Paste() {
 
       case 'freehand':
         console.log("Enabling freehand drawing mode");
-        console.log("Freehand brush color:", fillColorRef.current);
-        console.log("Freehand brush width:", currentStrokeWidth);
-        console.log(canvas.freeDrawingBrush);
+       // console.log("Freehand brush color:", fillColorRef.current);
+        //console.log("Freehand brush width:", currentStrokeWidth);
+        //console.log(canvas.freeDrawingBrush);
          
         if(!canvas.freeDrawingBrush) return;
      canvas.isDrawingMode = true;
@@ -413,12 +413,12 @@ async function Paste() {
   }, [selectedTool, canvas]);
 
   const handleAddShape = (type: string) => {
-    console.log('Selecting tool:', type);
+    //console.log('Selecting tool:', type);
     setSelectedTool(type);
   };
 
   const handleColorChange = (color: string) => {
-    console.log('Changing stroke color:', color);
+   // console.log('Changing stroke color:', color);
     setSelectedColor(color);
     setShowColorPalette(false);
     
@@ -433,7 +433,7 @@ async function Paste() {
   };
 
   const handleFillColorChange = (color: string) => {
-    console.log('Changing fill color:', color);
+   // console.log('Changing fill color:', color);
     setFillColor(color);
     setShowFillPalette(false);
     
@@ -448,7 +448,7 @@ async function Paste() {
   };
 
   const handleStrokeWidthChange = (width: number) => {
-    console.log('Changing stroke width:', width);
+    //console.log('Changing stroke width:', width);
     setStrokeWidth(width);
     
     // Apply to selected object if any
@@ -462,7 +462,7 @@ async function Paste() {
   };
 
   const handleUndo = () => {
-    console.log('Undo action');
+   // console.log('Undo action');
     // TODO: Implement undo logic with fabric.js
   };
 
@@ -481,7 +481,7 @@ async function Paste() {
   const handleZoomIn = () => {
     const newZoom = Math.min(zoom + 10, 500);
     setZoom(newZoom);
-    console.log('Zoom in:', newZoom);
+    //console.log('Zoom in:', newZoom);
     if (canvas) {
       canvas.setZoom(newZoom / 100);
       canvas.renderAll();
@@ -491,7 +491,7 @@ async function Paste() {
   const handleZoomOut = () => {
     const newZoom = Math.max(zoom - 10, 10);
     setZoom(newZoom);
-    console.log('Zoom out:', newZoom);
+    //console.log('Zoom out:', newZoom);
     if (canvas) {
       canvas.setZoom(newZoom / 100);
       canvas.renderAll();
@@ -499,7 +499,7 @@ async function Paste() {
   };
 
   const handleExport = () => {
-    console.log('Export canvas');
+   // console.log('Export canvas');
     // if (canvas) {
     //   const dataURL = canvas.toDataURL({
     //     format: 'png',
@@ -537,33 +537,33 @@ async function Paste() {
     };
      const persistCanvas = () => {
       if (canvas && ws) {
-        console.log("Persisting canvas to server...");
+        //console.log("Persisting canvas to server...");
         ws.send(
           JSON.stringify({ type: "update_database", message: { slug, data: canvas.toJSON() } })
         );
-        console.log("Sent final canvas state to server");
+        //console.log("Sent final canvas state to server");
       }
     };
     if (prevPathname.current !== pathname) {
-      console.log("Pathname changed, persisting canvas...");
+     // console.log("Pathname changed, persisting canvas...");
       persistCanvas();
       prevPathname.current = pathname;
     }
 
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      console.log("Window unloading, persisting canvas...");
+      //console.log("Window unloading, persisting canvas...");
       persistCanvas();
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    console.log("sending request for previous messages");
+    //console.log("sending request for previous messages");
     ws?.send(JSON.stringify({ type: "prev_messages", message: { slug} }));
     document.addEventListener('mousedown', handleClickOutside);
     return () =>{ document.removeEventListener('mousedown', handleClickOutside);
            if(canvas)
           { 
             ws?.send(JSON.stringify({ type: "update_database", message: { slug, data: canvas?.toJSON() } }));
-            console.log("Sent final canvas state to server");
+           // console.log("Sent final canvas state to server");
           }
     };
   }, [ws]);
@@ -613,7 +613,7 @@ img.onload = () => {
          fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
 
     setCanvas(fabricCanvas);
-    console.log("fabric canvas initialized", fabricCanvas);
+    //console.log("fabric canvas initialized", fabricCanvas);
 
     const resizeCanvas = () => {
       const container = canvasRef.current?.parentElement;
@@ -634,12 +634,12 @@ img.onload = () => {
 
     // WebSocket broadcast functions
     const broadcast = () => {
-      console.log("Broadcasting update...");
-      console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
+      //console.log("Broadcasting update...");
+      //console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
       if (isRemoteUpdate.current) return; // skip remote updates
-      console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
+      //console.log("isRemoteUpdate.current:",isRemoteUpdate.current);
 
-      console.log("Broadcasting local update...");
+      //console.log("Broadcasting local update...");
       ws?.send(JSON.stringify({ 
         type: "update", 
         message: { slug, data: fabricCanvas.toJSON() }, 
@@ -658,24 +658,24 @@ img.onload = () => {
     // WebSocket message handler
     if (ws) {
       ws.onmessage = (e) => {
-        console.log("Received message:", e.data);
+        //console.log("Received message:", e.data);
         try {
           const msg = JSON.parse(e.data);
           if (msg.type === "update" && msg.message) {
             console.log("Receiving remote update...");
             isRemoteUpdate.current = true;
             
-            console.log(msg.message);
+            //console.log(msg.message);
             fabricCanvas.loadFromJSON(msg.message, () => {
               fabricCanvas.renderAll();
               fabricCanvas.requestRenderAll();
-              console.log("Canvas objects:", fabricCanvas.getObjects());
+              //console.log("Canvas objects:", fabricCanvas.getObjects());
 
               setTimeout(() => {
                 isRemoteUpdate.current = false;
                 console.log("Remote update complete; re-enabling broadcast");
               }, 200);
-              console.log(" i am after settimeout")
+              
             });
           }
         } catch (error) {
